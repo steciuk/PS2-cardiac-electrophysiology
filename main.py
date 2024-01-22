@@ -28,7 +28,31 @@ app.layout = html.Div(
                     label="Import",
                     nav=True,
                 ),
-                html.Div(id="output-data-upload"),
+                dbc.DropdownMenu(
+                    [],
+                    label="Export",
+                    nav=True,
+                    disabled=True,
+                ),
+                dbc.DropdownMenu(
+                    [
+                        dbc.DropdownMenuItem("Local Activation Times", disabled=True),
+                        dbc.DropdownMenuItem(
+                            "Peak to Peak voltage of uEGMs", disabled=True
+                        ),
+                        dbc.DropdownMenuItem(
+                            "Peak Voltage of omnipolar Signal", disabled=True
+                        ),
+                        dbc.DropdownMenuItem(
+                            "Pulse Width of omnipolar Signal", disabled=True
+                        ),
+                        dbc.DropdownMenuItem("Clear", disabled=True),
+                    ],
+                    id="maps-dropdown",
+                    label="Draw Maps",
+                    nav=True,
+                    disabled=True,
+                ),
             ]
         ),
         html.Div(id="graph-container"),
