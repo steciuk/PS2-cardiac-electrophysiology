@@ -18,6 +18,6 @@ def read_DxL_project(filenames, contents):
     print(os.path.dirname(filenames[0]))
 
     vertices, faces = extract_landmark(filenames, contents)
-    extract_dxl_data(filenames, contents)
+    meta, data, signals = extract_dxl_data(filenames, contents)
 
-    return vertices, faces
+    return vertices, faces, meta, data, signals

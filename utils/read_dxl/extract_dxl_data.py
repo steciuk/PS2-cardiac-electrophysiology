@@ -75,7 +75,7 @@ def extract_dxl_data(filenames, contents):
         blocks = blocks[:5]
 
         for block in blocks:
-            df = pd.read_csv(StringIO("".join(block)), sep=",")
+            df = pd.read_csv(StringIO("\n".join(block)), sep=",")
             first_column = df.columns[0]
             if first_column not in signals:
                 signals[first_column[:-1]] = []
@@ -88,10 +88,4 @@ def extract_dxl_data(filenames, contents):
 
     signals = {k: pd.concat(v, axis=1) for k, v in signals.items()}
 
-    print(meta)
-    print(data.shape)
-    print(data.head())
-
-    for k, v in signals.items():
-        print(k, v.shape)
-        print(v.head())
+    return meta, data, signals
