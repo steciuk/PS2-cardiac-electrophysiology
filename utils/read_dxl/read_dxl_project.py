@@ -20,4 +20,10 @@ def read_DxL_project(filenames, contents):
     vertices, faces = extract_landmark(filenames, contents)
     meta, data, signals = extract_dxl_data(filenames, contents)
 
-    return vertices, faces, meta, data, signals
+    return {
+        "vertices": vertices,
+        "faces": faces,
+        "meta": meta,
+        "data": data,
+        "signals": signals,
+    }

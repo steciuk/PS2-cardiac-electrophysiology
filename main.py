@@ -7,7 +7,7 @@ from utils.read_dxl.read_dxl_project import read_DxL_project
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
-data = None
+DATA = None
 
 app.layout = html.Div(
     [
@@ -36,7 +36,12 @@ app.layout = html.Div(
                 ),
                 dbc.DropdownMenu(
                     [
-                        dbc.DropdownMenuItem("Local Activation Times", disabled=True),
+                        dbc.DropdownMenuItem(
+                            "Local Activation Times",
+                            id="draw-lat",
+                            n_clicks=0,
+                            disabled=True,
+                        ),
                         dbc.DropdownMenuItem(
                             "Peak to Peak voltage of uEGMs", disabled=True
                         ),
@@ -48,7 +53,7 @@ app.layout = html.Div(
                         ),
                         dbc.DropdownMenuItem("Clear", disabled=True),
                     ],
-                    id="maps-dropdown",
+                    id="draw-dropdown",
                     label="Draw Maps",
                     nav=True,
                     disabled=True,
@@ -62,22 +67,38 @@ app.layout = html.Div(
 
 @callback(
     Output("graph-container", "children", allow_duplicate=True),
+    Input("draw-lat", "n_clicks"),
+    prevent_initial_call=True,
+)
+def draw_lat(n_clicks):
+    if n_clicks == 0:
+        return dash.no_update
+
+    print(DATA["data"])
+    return None
+
+
+@callback(
+    Output("graph-container", "children", allow_duplicate=True),
+    Output("draw-dropdown", "disabled"),
+    Output("draw-lat", "disabled"),
     Input("upload-browse-data", "contents"),
     State("upload-browse-data", "filename"),
     prevent_initial_call=True,
 )
 def upload_data(contents, filenames):
     if contents is None or len(contents) == 0:
-        return None
+        return dash.no_update, dash.no_update, dash.no_update
 
-    vertices, faces, meta, data, signals = read_DxL_project(filenames, contents)
+    global DATA
+    DATA = read_DxL_project(filenames, contents)
 
     print("Plotting geometry")
     fig = ff.create_trisurf(
-        x=vertices["x"],
-        y=vertices["y"],
-        z=vertices["z"],
-        simplices=faces.values,
+        x=DATA["vertices"]["x"],
+        y=DATA["vertices"]["y"],
+        z=DATA["vertices"]["z"],
+        simplices=DATA["faces"].values,
         title="DxLandmarkGeo",
         aspectratio=dict(x=1, y=1, z=1),
         show_colorbar=False,
@@ -88,7 +109,7 @@ def upload_data(contents, filenames):
     fig.update_layout(
         scene=dict(xaxis_title="x (mm)", yaxis_title="y (mm)", zaxis_title="z (mm)")
     )
-    return dcc.Graph(figure=fig)
+    return dcc.Graph(figure=fig), False, False
 
 
 if __name__ == "__main__":
