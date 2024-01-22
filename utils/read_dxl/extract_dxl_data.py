@@ -58,7 +58,7 @@ def extract_dxl_data(filenames, contents):
 
         data_lines = lines[46:74]
         df_data = pd.read_csv(
-            StringIO("".join(data_lines)), sep=",", index_col=0, header=None
+            StringIO("\n".join(data_lines)), sep=",", index_col=0, header=None
         )
         df_data = df_data.transpose()
         df_data.columns = [column[:-1] for column in df_data.columns]
@@ -67,15 +67,16 @@ def extract_dxl_data(filenames, contents):
         signal_lines = lines[81:]
         start = 0
         blocks = []
-        for i, line in enumerate(signal_lines[1:]):
-            if not line.startswith(","):
-                blocks.append(signal_lines[start:i])
-                start = i
+        for i, line in enumerate(signal_lines):
+            if line == "":
+                blocks.append((start, i))
+                start = i + 1
 
         blocks = blocks[:5]
+        blocks[-1] = (blocks[-1][0], blocks[-1][1] - 1)
 
-        for block in blocks:
-            df = pd.read_csv(StringIO("\n".join(block)), sep=",")
+        for start, end in blocks:
+            df = pd.read_csv(StringIO("\n".join(signal_lines[start:end])), sep=",")
             first_column = df.columns[0]
             if first_column not in signals:
                 signals[first_column[:-1]] = []
