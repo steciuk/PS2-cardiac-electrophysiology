@@ -3,7 +3,7 @@ import dash_bootstrap_components as dbc
 import plotly.figure_factory as ff
 from dash import Input, Output, State, callback, dcc, html
 
-from utils.read_dxl.read_dxl import read_DxL
+from utils.read_dxl.read_dxl_project import read_DxL_project
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
@@ -56,22 +56,27 @@ app.layout = html.Div(
             ]
         ),
         html.Div(id="graph-container"),
+        html.Div(id="error"),
     ]
 )
 
 
 @callback(
     Output("graph-container", "children"),
+    Output("error", "children"),
     Input("upload-data", "contents"),
     State("upload-data", "filename"),
 )
 def update_output(contents, filenames):
     if contents is None or len(contents) == 0:
-        return
+        return None, None
 
-    print("Callback run")
+    try:
+        vertices, faces = read_DxL_project(filenames, contents)
+    except Exception as e:
+        return None, str(e)
 
-    vertices, faces = read_DxL(filenames, contents)
+    print("Plotting geometry")
     fig = ff.create_trisurf(
         x=vertices["x"],
         y=vertices["y"],
@@ -87,7 +92,7 @@ def update_output(contents, filenames):
     fig.update_layout(
         scene=dict(xaxis_title="x (mm)", yaxis_title="y (mm)", zaxis_title="z (mm)")
     )
-    return dcc.Graph(figure=fig)
+    return dcc.Graph(figure=fig), None
 
 
 if __name__ == "__main__":
