@@ -55,7 +55,11 @@ def update_output(contents, filenames):
         simplices=faces.values,
         title="DxLandmarkGeo",
         aspectratio=dict(x=1, y=1, z=1),
+        show_colorbar=False,
     )
+    for trace in fig.data:
+        trace.update(opacity=0.5)
+
     fig.update_layout(
         scene=dict(xaxis_title="x (mm)", yaxis_title="y (mm)", zaxis_title="z (mm)")
     )
