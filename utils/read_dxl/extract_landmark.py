@@ -18,7 +18,6 @@ def extract_landmark(filenames, contents):
 
     landmark_content = contents[filenames.index(DXL_LANDMARK_GEO_NAME)]
     landmark_string = decode_raw_content(landmark_content)
-
     landmark_xml = ET.fromstring(landmark_string)
 
     vertices_text = landmark_xml.find(VERTICES_PATH_FROM_ROOT).text
