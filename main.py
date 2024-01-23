@@ -3,10 +3,11 @@ import dash_bootstrap_components as dbc
 import plotly.figure_factory as ff
 from dash import Input, Output, State, callback, ctx, dcc, html
 
-from utils.read_dxl.read_dxl_project import read_DxL_project
+from utils.read_dxl.read_dxl_project import read_DxL_project, read_local_DxL_project
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
+global DATA
 DATA = None
 
 app.layout = html.Div(
@@ -26,6 +27,19 @@ app.layout = html.Div(
                         dbc.DropdownMenuItem("From Contact_Mapping", disabled=True),
                     ],
                     label="Import",
+                    nav=True,
+                ),
+                dbc.DropdownMenu(
+                    [
+                        dbc.DropdownMenuItem("Import .mat file", disabled=True),
+                        dbc.DropdownMenuItem(
+                            "Import DxL files",
+                            id="upload-local-data",
+                            n_clicks=0,
+                        ),
+                        dbc.DropdownMenuItem("From Contact_Mapping", disabled=True),
+                    ],
+                    label="Local import (FAST)",
                     nav=True,
                 ),
                 dbc.DropdownMenu(
@@ -84,14 +98,24 @@ def draw_lat(n_clicks):
     Output("draw-lat", "disabled"),
     Input("upload-browse-data", "contents"),
     State("upload-browse-data", "filename"),
+    Input("upload-local-data", "n_clicks"),
     prevent_initial_call=True,
 )
-def upload_data(contents, filenames):
-    if contents is None or len(contents) == 0:
-        return dash.no_update, dash.no_update, dash.no_update
-
+def upload_data(contents, filenames, n_clicks):
+    trigger = ctx.triggered_id
     global DATA
-    DATA = read_DxL_project(filenames, contents)
+
+    if trigger == "upload-browse-data":
+        if contents is None or len(contents) == 0:
+            return dash.no_update, dash.no_update, dash.no_update
+
+        DATA = read_DxL_project(filenames, contents)
+
+    elif trigger == "upload-local-data":
+        if n_clicks == 0:
+            return dash.no_update, dash.no_update, dash.no_update
+
+        DATA = read_local_DxL_project()
 
     print("Plotting geometry")
     fig = ff.create_trisurf(

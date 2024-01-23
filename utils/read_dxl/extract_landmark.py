@@ -14,10 +14,30 @@ def extract_landmark(filenames, contents):
     if DXL_LANDMARK_GEO_NAME not in filenames:
         raise Exception("No DxLandmarkGeo.xml file uploaded")
 
-    print(f"Processing {DXL_LANDMARK_GEO_NAME}")
-
     landmark_content = contents[filenames.index(DXL_LANDMARK_GEO_NAME)]
     landmark_string = decode_raw_content(landmark_content)
+
+    return extract(landmark_string)
+
+
+def extract_local_landmark(paths):
+    landmark_path = None
+    for path in paths:
+        if path.endswith(DXL_LANDMARK_GEO_NAME):
+            landmark_path = path
+            break
+
+    if landmark_path is None:
+        raise Exception("No DxLandmarkGeo.xml file selected")
+
+    with open(landmark_path, "r") as f:
+        landmark_string = f.read()
+        return extract(landmark_string)
+
+
+def extract(landmark_string):
+    print(f"Processing {DXL_LANDMARK_GEO_NAME}")
+
     landmark_xml = ET.fromstring(landmark_string)
 
     vertices_text = landmark_xml.find(VERTICES_PATH_FROM_ROOT).text

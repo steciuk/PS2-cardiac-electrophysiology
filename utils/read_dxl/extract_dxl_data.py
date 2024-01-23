@@ -1,3 +1,4 @@
+import os
 import re
 from io import StringIO
 
@@ -9,6 +10,22 @@ DXL_RE = re.compile(r"DxL_(\d+).csv")
 FILE_OF_FILES_RE = re.compile(r"(\d+)\sof\s(\d+)")
 
 
+def extract_local_dxl_data(paths):
+    # Find all DxL files
+    dxl_files = {}
+
+    for path in paths:
+        filename = path.split("/")[-1]
+        if DXL_RE.match(filename):
+            dxl_files[int(DXL_RE.match(filename).group(1))] = path
+
+    def reader(path):
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+
+    return extract(dxl_files, reader)
+
+
 def extract_dxl_data(filenames, contents):
     # Find all DxL files
     dxl_files = {}
@@ -17,13 +34,19 @@ def extract_dxl_data(filenames, contents):
         if match:
             dxl_files[int(match.group(1))] = content
 
-    if len(dxl_files) == 0:
+    def reader(content):
+        return decode_raw_content(content)
+
+    return extract(dxl_files, reader)
+
+
+def extract(dxls, reader):
+    if len(dxls) == 0:
         raise Exception("No DxL files uploaded")
 
-    # Sort files by their number
-    dxl_files = list(dict(sorted(dxl_files.items(), key=lambda item: item[0])).values())
+    # Sort by number
+    dxls = list(dict(sorted(dxls.items(), key=lambda item: item[0])).values())
 
-    # Read all DxL files
     data = []
     meta = []
     signals = {}
@@ -31,8 +54,8 @@ def extract_dxl_data(filenames, contents):
     seen_files = set()
     expected_num_files = None
 
-    for file in dxl_files:
-        file = decode_raw_content(file)
+    for file in dxls:
+        file = reader(file)
         lines = file.split("\n")
 
         files_match = FILE_OF_FILES_RE.search(lines[13])
