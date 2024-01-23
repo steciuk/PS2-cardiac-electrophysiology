@@ -4,6 +4,12 @@ import plotly.figure_factory as ff
 import plotly.graph_objs as go
 from dash import Input, Output, State, callback, ctx, dcc, html
 
+from utils.get_vals_for_map import (
+    get_lats,
+    get_peak,
+    get_ppvoltage,
+    get_pulsewidth_omnipolar,
+)
 from utils.read_dxl.read_dxl_project import read_DxL_project, read_local_DxL_project
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -56,20 +62,25 @@ app.layout = html.Div(
                     [
                         dbc.DropdownMenuItem(
                             "Local Activation Times",
-                            id="draw-lat",
+                            id="draw-lats",
                             n_clicks=0,
-                            disabled=True,
                         ),
                         dbc.DropdownMenuItem(
-                            "Peak to Peak voltage of uEGMs", disabled=True
+                            "Peak to Peak voltage of uEGMs",
+                            id="draw-ppvoltage",
+                            n_clicks=0,
                         ),
                         dbc.DropdownMenuItem(
-                            "Peak Voltage of omnipolar Signal", disabled=True
+                            "Peak Voltage of omnipolar Signal",
+                            id="draw-peak",
+                            n_clicks=0,
                         ),
                         dbc.DropdownMenuItem(
-                            "Pulse Width of omnipolar Signal", disabled=True
+                            "Pulse Width of omnipolar Signal",
+                            id="draw-pulsewidth_omnipolar",
+                            n_clicks=0,
                         ),
-                        dbc.DropdownMenuItem("Clear", disabled=True),
+                        dbc.DropdownMenuItem("Clear", id="draw-clear", n_clicks=0),
                     ],
                     id="draw-dropdown",
                     label="Draw Maps",
@@ -85,34 +96,66 @@ app.layout = html.Div(
 
 @callback(
     Output("graph-container", "children", allow_duplicate=True),
-    Input("draw-lat", "n_clicks"),
+    Input("draw-lats", "n_clicks"),
+    Input("draw-ppvoltage", "n_clicks"),
+    Input("draw-peak", "n_clicks"),
+    Input("draw-pulsewidth_omnipolar", "n_clicks"),
+    Input("draw-clear", "n_clicks"),
     prevent_initial_call=True,
 )
-def draw_lat(n_clicks):
-    if n_clicks == 0 or GEO_PLOT is None:
+def draw_map(*n_clicks):
+    if all([n_click == 0 for n_click in n_clicks]) or GEO_PLOT is None:
         return dash.no_update
 
+    trigger = ctx.triggered_id
+
     data_table = DATA["data_table"]
-    lats = data_table["rov LAT"] - data_table["ref LAT"]
-    min_lat = abs(lats.min())
-    lats = lats + min_lat
+
     x, y, z = data_table["roving x"], data_table["roving y"], data_table["roving z"]
+    values, legend, title = None, "", ""
+
+    if trigger == "draw-lats":
+        print("Drawing LATs")
+        values = get_lats(data_table)
+        legend = "LATs (s)"
+        title = "Map of LATs (s)"
+    elif trigger == "draw-ppvoltage":
+        print("Drawing PP Voltage")
+        values = get_ppvoltage(data_table)
+        legend = "P-P Voltage (mV)"
+        title = "Map of Peak to Peak Voltage (mV)"
+    elif trigger == "draw-peak":
+        print("Drawing Peak Voltage")
+        values = get_peak(data_table)
+        legend = "Peak Voltage (mV)"
+        title = "Map of Peak Amplitude of Omnipole"
+    elif trigger == "draw-pulsewidth_omnipolar":
+        print("Drawing Pulse Width")
+        values = get_pulsewidth_omnipolar(data_table)
+        legend = "Pulse Width (ms)"
+        title = "Map of Pulse Width of Omnipolar Signals"
+    else:
+        print("Clearing")
+        GEO_PLOT.update_layout(title="Geometry")
+        return dcc.Graph(figure=GEO_PLOT)
 
     scatter = go.Scatter3d(
         x=x,
         y=y,
         z=z,
         mode="markers",
-        marker=dict(
-            size=5,
-            color=lats,
-            opacity=0.8,
-        ),
-        name="Map of LATs (s)",
+        marker={
+            "size": 5,
+            "color": values,
+            "opacity": 0.8,
+            "colorbar": {"title": legend},
+            "cmin": values.min(),
+            "cmax": values.max(),
+        },
     )
 
-    geo_plot = GEO_PLOT
-    fig = go.Figure(data=[*geo_plot.data, scatter], layout=geo_plot.layout)
+    GEO_PLOT.update_layout(title=title)
+    fig = go.Figure(data=[*GEO_PLOT.data, scatter], layout=GEO_PLOT.layout)
 
     return dcc.Graph(figure=fig)
 
@@ -120,7 +163,6 @@ def draw_lat(n_clicks):
 @callback(
     Output("graph-container", "children", allow_duplicate=True),
     Output("draw-dropdown", "disabled"),
-    Output("draw-lat", "disabled"),
     Input("upload-browse-data", "contents"),
     State("upload-browse-data", "filename"),
     Input("upload-local-data", "n_clicks"),
@@ -132,23 +174,16 @@ def upload_data(contents, filenames, n_clicks):
 
     if trigger == "upload-browse-data":
         if contents is None or len(contents) == 0:
-            return dash.no_update, dash.no_update, dash.no_update
+            return dash.no_update, dash.no_update
 
         DATA = read_DxL_project(filenames, contents)
 
     elif trigger == "upload-local-data":
         if n_clicks == 0:
-            return dash.no_update, dash.no_update, dash.no_update
+            return dash.no_update, dash.no_update
 
         DATA = read_local_DxL_project()
 
-    global GEO_PLOT
-    GEO_PLOT = get_geometry_plot()
-
-    return dcc.Graph(figure=GEO_PLOT), False, False
-
-
-def get_geometry_plot():
     print("Plotting geometry")
     vertices, faces = DATA["vertices"], DATA["faces"]
 
@@ -157,7 +192,7 @@ def get_geometry_plot():
         y=vertices["y"],
         z=vertices["z"],
         simplices=faces.values,
-        title="DxLandmarkGeo",
+        title="Geometry",
         aspectratio=dict(x=1, y=1, z=1),
         show_colorbar=False,
     )
@@ -165,10 +200,18 @@ def get_geometry_plot():
         trace.update(opacity=0.5)
 
     fig.update_layout(
-        scene=dict(xaxis_title="x (mm)", yaxis_title="y (mm)", zaxis_title="z (mm)")
+        scene={
+            "xaxis_title": "x (mm)",
+            "yaxis_title": "y (mm)",
+            "zaxis_title": "z (mm)",
+        },
+        showlegend=False,
     )
 
-    return fig
+    global GEO_PLOT
+    GEO_PLOT = fig
+
+    return dcc.Graph(figure=fig), False
 
 
 if __name__ == "__main__":

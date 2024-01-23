@@ -117,5 +117,6 @@ def format_data_table_types(data_table):
     # Add more if necesery
     data_table["rov LAT"] = data_table["rov LAT"].astype(float)
     data_table["ref LAT"] = data_table["ref LAT"].astype(float)
+    data_table["peak2peak"] = data_table["peak2peak"].astype(float)
 
     return data_table
