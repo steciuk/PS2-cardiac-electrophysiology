@@ -47,7 +47,7 @@ def extract(dxls, reader):
     # Sort by number
     dxls = list(dict(sorted(dxls.items(), key=lambda item: item[0])).values())
 
-    data = []
+    data_table = []
     meta = []
     signals = {}
 
@@ -56,9 +56,11 @@ def extract(dxls, reader):
 
     for file in dxls:
         file = reader(file)
-        lines = file.split("\n")
 
-        files_match = FILE_OF_FILES_RE.search(lines[13])
+        header, data = file.split("Begin data\n", 1)
+
+        header = header.split("\n")
+        files_match = FILE_OF_FILES_RE.search(header[13])
         if expected_num_files is None:
             expected_num_files = int(files_match.group(2))
         else:
@@ -70,7 +72,7 @@ def extract(dxls, reader):
 
         print(f"Processing DxL file {num_file} of {expected_num_files}")
 
-        meta_lines = lines[0:11]
+        meta_lines = header[0:11]
 
         file_meta = {}
         for line in meta_lines:
@@ -79,27 +81,21 @@ def extract(dxls, reader):
 
         meta.append(file_meta)
 
-        data_lines = lines[46:74]
-        df_data = pd.read_csv(
-            StringIO("\n".join(data_lines)), sep=",", index_col=0, header=None
-        )
+        data_blocks = data.split("\n\n")
+        data_lines, signal_blocks = data_blocks[0][:-6], data_blocks[1:]
+
+        df_data = pd.read_csv(StringIO(data_lines), sep=",", index_col=0, header=None)
         df_data = df_data.transpose()
         df_data.columns = [column[:-1] for column in df_data.columns]
-        data.append(df_data)
+        data_table.append(df_data)
 
-        signal_lines = lines[81:]
-        start = 0
-        blocks = []
-        for i, line in enumerate(signal_lines):
-            if line == "":
-                blocks.append((start, i))
-                start = i + 1
+        signal_blocks = signal_blocks[:5]
+        signal_blocks[-1] = signal_blocks[-1].rstrip(
+            "FFT spectrum is available for FFT maps only"
+        )
 
-        blocks = blocks[:5]
-        blocks[-1] = (blocks[-1][0], blocks[-1][1] - 1)
-
-        for start, end in blocks:
-            df = pd.read_csv(StringIO("\n".join(signal_lines[start:end])), sep=",")
+        for block in signal_blocks:
+            df = pd.read_csv(StringIO(block), sep=",")
             first_column = df.columns[0]
             if first_column not in signals:
                 signals[first_column[:-1]] = []
@@ -107,9 +103,9 @@ def extract(dxls, reader):
             df = df.drop(columns=[first_column])
             signals[first_column[:-1]].append(df)
 
-    data = pd.concat(data)
-    data = data.reset_index(drop=True)
+    data_table = pd.concat(data_table)
+    data_table = data_table.reset_index(drop=True)
 
     signals = {k: pd.concat(v, axis=1) for k, v in signals.items()}
 
-    return meta, data, signals
+    return meta, data_table, signals

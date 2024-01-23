@@ -133,6 +133,7 @@ def upload_data(contents, filenames, n_clicks):
     fig.update_layout(
         scene=dict(xaxis_title="x (mm)", yaxis_title="y (mm)", zaxis_title="z (mm)")
     )
+
     return dcc.Graph(figure=fig), False, False
 
 
