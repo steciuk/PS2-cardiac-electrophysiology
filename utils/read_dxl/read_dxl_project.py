@@ -24,7 +24,7 @@ def read_DxL_project(filenames, contents):
         "vertices": vertices,
         "faces": faces,
         "meta": meta,
-        "data": data,
+        "data_table": data,
         "signals": signals,
     }
 
@@ -46,6 +46,6 @@ def read_local_DxL_project():
         "vertices": vertices,
         "faces": faces,
         "meta": meta,
-        "data": data,
+        "data_table": data,
         "signals": signals,
     }

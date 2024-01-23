@@ -1,6 +1,7 @@
 import dash
 import dash_bootstrap_components as dbc
 import plotly.figure_factory as ff
+import plotly.graph_objs as go
 from dash import Input, Output, State, callback, ctx, dcc, html
 
 from utils.read_dxl.read_dxl_project import read_DxL_project, read_local_DxL_project
@@ -9,6 +10,9 @@ app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 global DATA
 DATA = None
+
+global GEO_PLOT
+GEO_PLOT = None
 
 app.layout = html.Div(
     [
@@ -85,11 +89,32 @@ app.layout = html.Div(
     prevent_initial_call=True,
 )
 def draw_lat(n_clicks):
-    if n_clicks == 0:
+    if n_clicks == 0 or GEO_PLOT is None:
         return dash.no_update
 
-    print(DATA["data"])
-    return None
+    data_table = DATA["data_table"]
+    lats = data_table["rov LAT"] - data_table["ref LAT"]
+    min_lat = abs(lats.min())
+    lats = lats + min_lat
+    x, y, z = data_table["roving x"], data_table["roving y"], data_table["roving z"]
+
+    scatter = go.Scatter3d(
+        x=x,
+        y=y,
+        z=z,
+        mode="markers",
+        marker=dict(
+            size=5,
+            color=lats,
+            opacity=0.8,
+        ),
+        name="Map of LATs (s)",
+    )
+
+    geo_plot = GEO_PLOT
+    fig = go.Figure(data=[*geo_plot.data, scatter], layout=geo_plot.layout)
+
+    return dcc.Graph(figure=fig)
 
 
 @callback(
@@ -117,12 +142,21 @@ def upload_data(contents, filenames, n_clicks):
 
         DATA = read_local_DxL_project()
 
+    global GEO_PLOT
+    GEO_PLOT = get_geometry_plot()
+
+    return dcc.Graph(figure=GEO_PLOT), False, False
+
+
+def get_geometry_plot():
     print("Plotting geometry")
+    vertices, faces = DATA["vertices"], DATA["faces"]
+
     fig = ff.create_trisurf(
-        x=DATA["vertices"]["x"],
-        y=DATA["vertices"]["y"],
-        z=DATA["vertices"]["z"],
-        simplices=DATA["faces"].values,
+        x=vertices["x"],
+        y=vertices["y"],
+        z=vertices["z"],
+        simplices=faces.values,
         title="DxLandmarkGeo",
         aspectratio=dict(x=1, y=1, z=1),
         show_colorbar=False,
@@ -134,7 +168,7 @@ def upload_data(contents, filenames, n_clicks):
         scene=dict(xaxis_title="x (mm)", yaxis_title="y (mm)", zaxis_title="z (mm)")
     )
 
-    return dcc.Graph(figure=fig), False, False
+    return fig
 
 
 if __name__ == "__main__":

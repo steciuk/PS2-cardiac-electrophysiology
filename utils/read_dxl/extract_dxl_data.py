@@ -108,4 +108,14 @@ def extract(dxls, reader):
 
     signals = {k: pd.concat(v, axis=1) for k, v in signals.items()}
 
+    data_table = format_data_table_types(data_table)
+
     return meta, data_table, signals
+
+
+def format_data_table_types(data_table):
+    # Add more if necesery
+    data_table["rov LAT"] = data_table["rov LAT"].astype(float)
+    data_table["ref LAT"] = data_table["ref LAT"].astype(float)
+
+    return data_table
