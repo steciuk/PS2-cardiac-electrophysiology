@@ -146,6 +146,9 @@ def export_to_pickle(n_clicks):
     prevent_initial_call=True,
 )
 def select_freeze_group(group):
+    if group is None:
+        return None
+
     print(f"Freeze group {group}")
 
     data_table = DATA["data_table"]
@@ -179,9 +182,20 @@ def select_freeze_group(group):
     fig.update_layout(
         title=f"Freeze Group {group}",
         showlegend=True,
+        xaxis={"fixedrange": True},
+        yaxis={"fixedrange": True},
+        dragmode="select",
     )
 
-    return dcc.Graph(figure=fig)
+    return dcc.Graph(
+        figure=fig,
+        config={
+            "modeBarButtons": False,
+            "scrollZoom": False,
+            "showAxisDragHandles": False,
+            "showAxisRangeEntryBoxes": False,
+        },
+    )
 
 
 @callback(
@@ -256,6 +270,7 @@ def draw_map(*n_clicks):
     Output("freeze-groups", "options"),
     Output("freeze-groups", "disabled"),
     Output("export-dropdown", "disabled"),
+    Output("freeze-groups", "value"),
     Input("upload-browse-data", "contents"),
     State("upload-browse-data", "filename"),
     Input("upload-local-data", "n_clicks"),
@@ -268,13 +283,13 @@ def upload_data(contents, filenames, n_clicks_dxl, n_clicks_pkl):
 
     if trigger == "upload-browse-data":
         if contents is None or len(contents) == 0:
-            return no_update, no_update, no_update, no_update, no_update
+            return no_update, no_update, no_update, no_update, no_update, no_update
 
         DATA = read_DxL_project(filenames, contents)
 
     elif trigger == "upload-local-data":
         if n_clicks_dxl == 0:
-            return no_update, no_update, no_update, no_update, no_update
+            return no_update, no_update, no_update, no_update, no_update, no_update
 
         DATA = read_local_DxL_project()
 
@@ -315,7 +330,7 @@ def upload_data(contents, filenames, n_clicks_dxl, n_clicks_pkl):
     global GEO_PLOT
     GEO_PLOT = fig
 
-    return dcc.Graph(figure=fig), False, group_select_options, False, False
+    return dcc.Graph(figure=fig), False, group_select_options, False, False, None
 
 
 if __name__ == "__main__":
