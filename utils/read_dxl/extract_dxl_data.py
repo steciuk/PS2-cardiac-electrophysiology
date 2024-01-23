@@ -95,18 +95,18 @@ def extract(dxls, reader):
         )
 
         for block in signal_blocks:
-            df = pd.read_csv(StringIO(block), sep=",")
-            first_column = df.columns[0]
+            df = pd.read_csv(StringIO(block), sep=",", header=None)
+            first_column = df.iloc[0, 0].rstrip(":")
             if first_column not in signals:
-                signals[first_column[:-1]] = []
+                signals[first_column] = []
 
-            df = df.drop(columns=[first_column])
-            signals[first_column[:-1]].append(df)
+            df = df.drop(df.columns[0], axis=1).transpose()
+            signals[first_column].append(df)
 
     data_table = pd.concat(data_table)
     data_table = data_table.reset_index(drop=True)
 
-    signals = {k: pd.concat(v, axis=1) for k, v in signals.items()}
+    signals = {k: pd.concat(v).reset_index(drop=True) for k, v in signals.items()}
 
     data_table = format_data_table_types(data_table)
 

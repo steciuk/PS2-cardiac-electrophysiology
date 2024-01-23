@@ -2,7 +2,7 @@ import dash
 import dash_bootstrap_components as dbc
 import plotly.figure_factory as ff
 import plotly.graph_objs as go
-from dash import Input, Output, State, callback, ctx, dcc, html
+from dash import ALL, Input, Output, State, callback, ctx, dcc, html, no_update
 
 from utils.get_vals_for_map import (
     get_lats,
@@ -91,15 +91,64 @@ app.layout = html.Div(
                 ),
             ]
         ),
+        html.Div(id="signals-container"),
         dbc.Row(
             [
-                dbc.Col(html.Div()),
-                dbc.Col(html.Div(id="graph-container")),
-                dbc.Col(dbc.ListGroup(id="freeze-groups")),
-            ]
+                dbc.Col(id="graph-container", width=True),
+                dbc.Col(
+                    [
+                        html.Div(
+                            [
+                                html.H5("Freeze Group"),
+                                dbc.Select(
+                                    id="freeze-groups",
+                                    options=[],
+                                    disabled=True,
+                                ),
+                            ],
+                            style={"max-width": "90px", "margin-right": "10px"},
+                        )
+                    ],
+                    width="auto",
+                ),
+            ],
         ),
     ]
 )
+
+
+@callback(
+    Output("signals-container", "children"),
+    Input("freeze-groups", "value"),
+    prevent_initial_call=True,
+)
+def select_freeze_group(group):
+    print(f"Freeze group {group}")
+
+    data_table = DATA["data_table"]
+    group_data = data_table[data_table["pt number"] == group]
+    group_rovs = DATA["signals"]["rov trace"].loc[group_data.index]
+
+    channels = group_rovs.iloc[:, 0]
+    signals = group_rovs.drop(group_rovs.columns[0], axis=1).astype(float)
+
+    fig = go.Figure()
+    for i, channel in enumerate(channels):
+        fig.add_trace(
+            go.Scatter(
+                x=list(range(len(signals.columns))),
+                y=signals.iloc[i, :],
+                name=channel,
+            )
+        )
+
+    fig.update_layout(
+        title=f"Freeze Group {group}",
+        showlegend=True,
+        xaxis={"visible": False},
+    )
+
+    return dcc.Graph(figure=fig)
 
 
 @callback(
@@ -113,7 +162,7 @@ app.layout = html.Div(
 )
 def draw_map(*n_clicks):
     if all([n_click == 0 for n_click in n_clicks]) or GEO_PLOT is None:
-        return dash.no_update
+        return no_update, no_update
 
     trigger = ctx.triggered_id
 
@@ -171,6 +220,8 @@ def draw_map(*n_clicks):
 @callback(
     Output("graph-container", "children", allow_duplicate=True),
     Output("draw-dropdown", "disabled"),
+    Output("freeze-groups", "options"),
+    Output("freeze-groups", "disabled"),
     Input("upload-browse-data", "contents"),
     State("upload-browse-data", "filename"),
     Input("upload-local-data", "n_clicks"),
@@ -182,15 +233,19 @@ def upload_data(contents, filenames, n_clicks):
 
     if trigger == "upload-browse-data":
         if contents is None or len(contents) == 0:
-            return dash.no_update, dash.no_update
+            return no_update, no_update, no_update, no_update
 
         DATA = read_DxL_project(filenames, contents)
 
     elif trigger == "upload-local-data":
         if n_clicks == 0:
-            return dash.no_update, dash.no_update
+            return no_update, no_update, no_update, no_update
 
         DATA = read_local_DxL_project()
+
+    data_table = DATA["data_table"]
+    groups = data_table["pt number"].unique()
+    group_select_options = [{"label": group, "value": group} for group in groups]
 
     print("Plotting geometry")
     vertices, faces = DATA["vertices"], DATA["faces"]
@@ -219,7 +274,7 @@ def upload_data(contents, filenames, n_clicks):
     global GEO_PLOT
     GEO_PLOT = fig
 
-    return dcc.Graph(figure=fig), False
+    return dcc.Graph(figure=fig), False, group_select_options, False
 
 
 if __name__ == "__main__":
