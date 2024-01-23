@@ -1,8 +1,9 @@
 import dash
 import dash_bootstrap_components as dbc
+import numpy as np
 import plotly.figure_factory as ff
 import plotly.graph_objs as go
-from dash import ALL, Input, Output, State, callback, ctx, dcc, html, no_update
+from dash import ALL, MATCH, Input, Output, State, callback, ctx, dcc, html, no_update
 from plotly.subplots import make_subplots
 
 from utils.export_data.pickle_data import pickle_data
@@ -102,6 +103,7 @@ app.layout = html.Div(
                 ),
             ]
         ),
+        html.Div(id={"type": "omnipolar-container", "index": "1"}),
         html.Div(id="signals-container"),
         dbc.Row(
             [
@@ -127,6 +129,16 @@ app.layout = html.Div(
         html.Div(id="placeholder", style={"display": "none"}),
     ]
 )
+
+
+@callback(
+    Output({"type": "omnipolar-container", "index": MATCH}, "children"),
+    Input({"type": "signals-graph", "index": MATCH}, "selectedData"),
+    prevent_initial_call=True,
+)
+def select_omnipolar(selectedData):
+    print(selectedData)
+    return no_update
 
 
 @callback(
@@ -158,15 +170,18 @@ def select_freeze_group(group):
     channels = group_rovs.iloc[:, 0]
     signals = group_rovs.drop(group_rovs.columns[0], axis=1).astype(float)
 
-    fig = make_subplots(
+    signals_fig = make_subplots(
         rows=len(channels),
         cols=1,
         shared_xaxes=True,
         vertical_spacing=0,
     )
 
+    recordings_ok = True
+    available_recordings = np.zeros((4, 4))
+
     for i, channel in enumerate(channels):
-        fig.add_trace(
+        signals_fig.add_trace(
             go.Scatter(
                 x=list(range(len(signals.columns))),
                 y=signals.iloc[i, :],
@@ -175,26 +190,83 @@ def select_freeze_group(group):
             row=i + 1,
             col=1,
         )
+        coords = list(channel.split("+")[1].strip())
+        if (
+            len(coords) != 2
+            or not coords[0] in list("ABCD")
+            or not coords[1] in list("1234")
+        ):
+            recordings_ok = False
+        else:
+            available_recordings[ord(coords[0]) - ord("A"), int(coords[1]) - 1] = 1
 
-        fig.update_xaxes(showticklabels=False, showgrid=False, row=i + 1, col=1)
-        fig.update_yaxes(showticklabels=False, showgrid=False, row=i + 1, col=1)
+        signals_fig.update_xaxes(showticklabels=False, showgrid=False, row=i + 1, col=1)
+        signals_fig.update_yaxes(showticklabels=False, showgrid=False, row=i + 1, col=1)
 
-    fig.update_layout(
+    signals_fig.update_layout(
         title=f"Freeze Group {group}",
         showlegend=True,
         xaxis={"fixedrange": True},
         yaxis={"fixedrange": True},
         dragmode="select",
+        margin=dict(l=5),
     )
 
-    return dcc.Graph(
-        figure=fig,
+    signals_graph = dcc.Graph(
+        figure=signals_fig,
         config={
             "modeBarButtons": False,
             "scrollZoom": False,
             "showAxisDragHandles": False,
             "showAxisRangeEntryBoxes": False,
         },
+        id={"type": "signals-graph", "index": "1"},
+    )
+
+    if not recordings_ok:
+        print(
+            "'rov trace' headers misformed. Cannot show available recordings. Expected format: 'Channel + [A-D][1-4]'"
+        )
+        return signals_graph
+
+    recordings_fig = go.Figure(
+        data=go.Heatmap(
+            z=available_recordings,
+            text=[[f"{chr(ord('A') + i)}{j + 1}" for j in range(4)] for i in range(4)],
+            x=[1, 2, 3, 4],
+            y=["A", "B", "C", "D"],
+            texttemplate="%{text}",
+            colorscale=[[0, "white"], [1, "green"]],
+            showscale=False,
+        ),
+    )
+
+    recordings_fig.update_layout(
+        showlegend=False,
+        width=120,
+        height=120,
+        autosize=False,
+        yaxis={"scaleanchor": "x", "fixedrange": True},
+        margin=dict(l=5, r=0, b=0, t=0, pad=0),
+        coloraxis=dict(showscale=False),
+    )
+
+    recordings_graph = dcc.Graph(
+        figure=recordings_fig,
+        config={
+            "staticPlot": True,
+        },
+    )
+
+    return dbc.Row(
+        [
+            dbc.Col(
+                html.Div(recordings_graph, style={"width": 150, "margin-left": "30px"}),
+                width="auto",
+            ),
+            dbc.Col(signals_graph, width=True),
+        ],
+        align="center",
     )
 
 
@@ -306,30 +378,31 @@ def upload_data(contents, filenames, n_clicks_dxl, n_clicks_pkl):
     print("Plotting geometry")
     vertices, faces = DATA["vertices"], DATA["faces"]
 
-    fig = ff.create_trisurf(
-        x=vertices["x"],
-        y=vertices["y"],
-        z=vertices["z"],
-        simplices=faces.values,
-        title="Geometry",
-        aspectratio=dict(x=1, y=1, z=1),
-        show_colorbar=False,
-    )
-    for trace in fig.data:
-        trace.update(opacity=0.5)
+    # fig = ff.create_trisurf(
+    #     x=vertices["x"],
+    #     y=vertices["y"],
+    #     z=vertices["z"],
+    #     simplices=faces.values,
+    #     title="Geometry",
+    #     aspectratio=dict(x=1, y=1, z=1),
+    #     show_colorbar=False,
+    # )
+    # for trace in fig.data:
+    #     trace.update(opacity=0.5)
 
-    fig.update_layout(
-        scene={
-            "xaxis_title": "x (mm)",
-            "yaxis_title": "y (mm)",
-            "zaxis_title": "z (mm)",
-        },
-        showlegend=False,
-    )
+    # fig.update_layout(
+    #     scene={
+    #         "xaxis_title": "x (mm)",
+    #         "yaxis_title": "y (mm)",
+    #         "zaxis_title": "z (mm)",
+    #     },
+    #     showlegend=False,
+    # )
 
-    global GEO_PLOT
-    GEO_PLOT = fig
+    # global GEO_PLOT
+    # GEO_PLOT = fig
 
+    return None, False, group_select_options, False, False, None
     return dcc.Graph(figure=fig), False, group_select_options, False, False, None
 
 
