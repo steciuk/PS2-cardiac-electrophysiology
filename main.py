@@ -74,11 +74,13 @@ app.layout = html.Div(
                             "Peak Voltage of omnipolar Signal",
                             id="draw-peak",
                             n_clicks=0,
+                            disabled=True,
                         ),
                         dbc.DropdownMenuItem(
                             "Pulse Width of omnipolar Signal",
                             id="draw-pulsewidth_omnipolar",
                             n_clicks=0,
+                            disabled=True,
                         ),
                         dbc.DropdownMenuItem("Clear", id="draw-clear", n_clicks=0),
                     ],
@@ -89,7 +91,13 @@ app.layout = html.Div(
                 ),
             ]
         ),
-        html.Div(id="graph-container"),
+        dbc.Row(
+            [
+                dbc.Col(html.Div()),
+                dbc.Col(html.Div(id="graph-container")),
+                dbc.Col(dbc.ListGroup(id="freeze-groups")),
+            ]
+        ),
     ]
 )
 
