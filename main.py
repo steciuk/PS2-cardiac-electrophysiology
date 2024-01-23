@@ -3,14 +3,17 @@ import dash_bootstrap_components as dbc
 import plotly.figure_factory as ff
 import plotly.graph_objs as go
 from dash import ALL, Input, Output, State, callback, ctx, dcc, html, no_update
+from plotly.subplots import make_subplots
 
+from utils.export_data.pickle_data import pickle_data
 from utils.get_vals_for_map import (
     get_lats,
     get_peak,
     get_ppvoltage,
     get_pulsewidth_omnipolar,
 )
-from utils.read_dxl.read_dxl_project import read_DxL_project, read_local_DxL_project
+from utils.import_data.read_dxl_project import read_DxL_project, read_local_DxL_project
+from utils.import_data.read_pkl import read_pkl
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
@@ -26,7 +29,6 @@ app.layout = html.Div(
             [
                 dbc.DropdownMenu(
                     [
-                        dbc.DropdownMenuItem("Import .mat file", disabled=True),
                         dbc.DropdownMenuItem(
                             dcc.Upload(
                                 "Import DxL files",
@@ -34,27 +36,36 @@ app.layout = html.Div(
                                 multiple=True,
                             ),
                         ),
-                        dbc.DropdownMenuItem("From Contact_Mapping", disabled=True),
                     ],
                     label="Import",
                     nav=True,
                 ),
                 dbc.DropdownMenu(
                     [
-                        dbc.DropdownMenuItem("Import .mat file", disabled=True),
+                        dbc.DropdownMenuItem(
+                            "Import .pkl file",
+                            id="upload-local-pkl",
+                            n_clicks=0,
+                        ),
                         dbc.DropdownMenuItem(
                             "Import DxL files",
                             id="upload-local-data",
                             n_clicks=0,
                         ),
-                        dbc.DropdownMenuItem("From Contact_Mapping", disabled=True),
                     ],
                     label="Local import (FAST)",
                     nav=True,
                 ),
                 dbc.DropdownMenu(
-                    [],
-                    label="Export",
+                    [
+                        dbc.DropdownMenuItem(
+                            "Pickle data",
+                            id="pickle-data",
+                            n_clicks=0,
+                        )
+                    ],
+                    id="export-dropdown",
+                    label="Local export (FAST)",
                     nav=True,
                     disabled=True,
                 ),
@@ -113,8 +124,20 @@ app.layout = html.Div(
                 ),
             ],
         ),
+        html.Div(id="placeholder", style={"display": "none"}),
     ]
 )
+
+
+@callback(
+    Output("placeholder", "children"),
+    Input("pickle-data", "n_clicks"),
+    prevent_initial_call=True,
+)
+def export_to_pickle(n_clicks):
+    pickle_data(DATA)
+
+    return no_update
 
 
 @callback(
@@ -132,20 +155,30 @@ def select_freeze_group(group):
     channels = group_rovs.iloc[:, 0]
     signals = group_rovs.drop(group_rovs.columns[0], axis=1).astype(float)
 
-    fig = go.Figure()
+    fig = make_subplots(
+        rows=len(channels),
+        cols=1,
+        shared_xaxes=True,
+        vertical_spacing=0,
+    )
+
     for i, channel in enumerate(channels):
         fig.add_trace(
             go.Scatter(
                 x=list(range(len(signals.columns))),
                 y=signals.iloc[i, :],
                 name=channel,
-            )
+            ),
+            row=i + 1,
+            col=1,
         )
+
+        fig.update_xaxes(showticklabels=False, showgrid=False, row=i + 1, col=1)
+        fig.update_yaxes(showticklabels=False, showgrid=False, row=i + 1, col=1)
 
     fig.update_layout(
         title=f"Freeze Group {group}",
         showlegend=True,
-        xaxis={"visible": False},
     )
 
     return dcc.Graph(figure=fig)
@@ -222,26 +255,34 @@ def draw_map(*n_clicks):
     Output("draw-dropdown", "disabled"),
     Output("freeze-groups", "options"),
     Output("freeze-groups", "disabled"),
+    Output("export-dropdown", "disabled"),
     Input("upload-browse-data", "contents"),
     State("upload-browse-data", "filename"),
     Input("upload-local-data", "n_clicks"),
+    Input("upload-local-pkl", "n_clicks"),
     prevent_initial_call=True,
 )
-def upload_data(contents, filenames, n_clicks):
+def upload_data(contents, filenames, n_clicks_dxl, n_clicks_pkl):
     trigger = ctx.triggered_id
     global DATA
 
     if trigger == "upload-browse-data":
         if contents is None or len(contents) == 0:
-            return no_update, no_update, no_update, no_update
+            return no_update, no_update, no_update, no_update, no_update
 
         DATA = read_DxL_project(filenames, contents)
 
     elif trigger == "upload-local-data":
-        if n_clicks == 0:
-            return no_update, no_update, no_update, no_update
+        if n_clicks_dxl == 0:
+            return no_update, no_update, no_update, no_update, no_update
 
         DATA = read_local_DxL_project()
+
+    elif trigger == "upload-local-pkl":
+        if n_clicks_pkl == 0:
+            return no_update, no_update, no_update, no_update, no_update
+
+        DATA = read_pkl()
 
     data_table = DATA["data_table"]
     groups = data_table["pt number"].unique()
@@ -274,7 +315,7 @@ def upload_data(contents, filenames, n_clicks):
     global GEO_PLOT
     GEO_PLOT = fig
 
-    return dcc.Graph(figure=fig), False, group_select_options, False
+    return dcc.Graph(figure=fig), False, group_select_options, False, False
 
 
 if __name__ == "__main__":
