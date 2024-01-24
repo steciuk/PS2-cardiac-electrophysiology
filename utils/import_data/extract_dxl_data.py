@@ -44,7 +44,6 @@ def extract(dxls, reader):
     if len(dxls) == 0:
         raise Exception("No DxL files uploaded")
 
-    # Sort by number
     dxls = list(dict(sorted(dxls.items(), key=lambda item: item[0])).values())
 
     data_table = None
@@ -64,7 +63,7 @@ def extract(dxls, reader):
         if expected_num_files is None:
             expected_num_files = int(files_match.group(2))
             data_table = [None for _ in range(expected_num_files)]
-            meta = [None for _ in range(expected_num_files)]
+            # meta = [None for _ in range(expected_num_files)]
         else:
             if expected_num_files != int(files_match.group(2)):
                 raise Exception("Number of expected files in DxL files do not match")
@@ -77,14 +76,14 @@ def extract(dxls, reader):
 
         print(f"Processing DxL file {num_file} of {expected_num_files}")
 
-        meta_lines = header[0:11]
+        # meta_lines = header[0:11]
 
-        file_meta = {}
-        for line in meta_lines:
-            key, value = line.strip().split(" : ")
-            file_meta[key] = value
+        # file_meta = {}
+        # for line in meta_lines:
+        #     key, value = line.strip().split(" : ")
+        #     file_meta[key] = value
 
-        meta[num_file - 1] = file_meta
+        # meta[num_file - 1] = file_meta
 
         data_blocks = data.split("\n\n")
         data_lines, signal_blocks = data_blocks[0][:-6], data_blocks[1:]
