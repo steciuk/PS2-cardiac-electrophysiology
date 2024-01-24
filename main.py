@@ -150,7 +150,7 @@ def select_omnipolar(selected_data, group):
     if group is None:
         return None
 
-    if selected_data["range"] is None:
+    if "range" not in selected_data.keys():
         return None
 
     selected_data_range_keys = [
