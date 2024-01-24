@@ -10,7 +10,14 @@ from utils.decode_raw_content import decode_raw_content
 FILE_OF_FILES_RE = re.compile(r"(\d+)\sof\s(\d+)")
 
 REQUIRED_DATA_BLOCKS = ["rov trace"]
-REQUIRED_DATA_TABLE_COLUMNS = ["rov LAT", "peak2peak"]
+REQUIRED_DATA_TABLE_COLUMNS = [
+    "pt number",
+    "rov LAT",
+    "peak2peak",
+    "roving x",
+    "roving y",
+    "roving z",
+]
 
 
 def extract_local_dxl_data(paths):
@@ -199,7 +206,6 @@ def extract(dxls, reader):
 
 
 def format_data_table_types(data_table):
-    # Add more if necesery
     data_table["rov LAT"] = data_table["rov LAT"].astype(float)
     data_table["ref LAT"] = data_table["ref LAT"].astype(float)
     data_table["peak2peak"] = data_table["peak2peak"].astype(float)

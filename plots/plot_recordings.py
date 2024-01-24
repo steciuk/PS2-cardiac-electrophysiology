@@ -7,8 +7,8 @@ def plot_recordings(recordings):
         data=go.Heatmap(
             z=recordings,
             text=[[f"{chr(ord('A') + i)}{j + 1}" for j in range(4)] for i in range(4)],
-            x=[1, 2, 3, 4],
             y=["A", "B", "C", "D"],
+            x=["1", "2", "3", "4"],
             texttemplate="%{text}",
             colorscale=[[0, "white"], [1, "green"]],
             showscale=False,
@@ -20,7 +20,8 @@ def plot_recordings(recordings):
         width=120,
         height=120,
         autosize=False,
-        yaxis={"scaleanchor": "x", "fixedrange": True},
+        yaxis={"scaleanchor": "x", "fixedrange": True, "showticklabels": False},
+        xaxis={"fixedrange": True, "showticklabels": False},
         margin=dict(l=10, r=10, b=10, t=10, pad=0),
         coloraxis=dict(showscale=False),
     )

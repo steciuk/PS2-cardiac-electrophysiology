@@ -21,6 +21,7 @@ def plot_geometry(vertices, faces):
             "zaxis_title": "z (mm)",
         },
         showlegend=False,
+        margin=dict(l=0, r=0, b=0, t=30),
     )
 
     return fig

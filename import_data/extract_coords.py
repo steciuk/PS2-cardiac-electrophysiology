@@ -14,7 +14,6 @@ def extract_coords(x):
 
     coords = COORDS_RE.findall(x)
     if len(coords) != 1:
-        # Ambiguous or missing coordinates
         return np.nan, np.nan
 
     return ord(coords[0][0]) - ord("A"), int(coords[0][1]) - 1
