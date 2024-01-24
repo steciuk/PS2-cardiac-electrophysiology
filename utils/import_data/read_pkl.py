@@ -12,7 +12,7 @@ def read_pkl():
     root.destroy()
 
     if paths is None or len(paths) == 0:
-        return
+        raise Exception("No files selected")
 
     print("Importing from", paths)
     with open(paths, "rb") as f:

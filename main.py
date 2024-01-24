@@ -5,25 +5,16 @@ import dash_bootstrap_components as dbc
 import numpy as np
 import plotly.figure_factory as ff
 import plotly.graph_objs as go
-from dash import ALL, MATCH, Input, Output, State, callback, ctx, dcc, html, no_update
+from dash import MATCH, Input, Output, State, callback, ctx, dcc, html, no_update
 from plotly.subplots import make_subplots
 
 from utils.export_data.pickle_data import pickle_data
-from utils.get_vals_for_map import (
-    get_lats,
-    get_peak,
-    get_ppvoltage,
-    get_pulsewidth_omnipolar,
-)
 from utils.import_data.read_dxl_project import read_DxL_project, read_local_DxL_project
 from utils.import_data.read_pkl import read_pkl
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
-# TODO: move to dcc.Store, to allow multiuser sessions
 DATA = None
-
-# TODO: move to dcc.Store, to allow multiuser sessions
 GEO_PLOT = None
 
 app.layout = html.Div(
@@ -414,22 +405,37 @@ def draw_map(*n_clicks):
 
     if trigger == "draw-lats":
         print("Drawing LATs")
-        values = get_lats(data_table)
+
+        lats = (
+            data_table["rov LAT"] - data_table["ref LAT"]
+            if "ref LAT" in data_table.columns
+            else data_table["rov LAT"]
+        )
+        min_lat = abs(lats.min())
+        lats = lats + min_lat
+
+        values = lats
         legend = "LATs (s)"
         title = "Map of LATs (s)"
     elif trigger == "draw-ppvoltage":
         print("Drawing PP Voltage")
-        values = get_ppvoltage(data_table)
+
+        raise Exception("Not implemented yet")
+
         legend = "P-P Voltage (mV)"
         title = "Map of Peak to Peak Voltage (mV)"
     elif trigger == "draw-peak":
         print("Drawing Peak Voltage")
-        values = get_peak(data_table)
+
+        raise Exception("Not implemented yet")
+
         legend = "Peak Voltage (mV)"
         title = "Map of Peak Amplitude of Omnipole"
     elif trigger == "draw-pulsewidth_omnipolar":
         print("Drawing Pulse Width")
-        values = get_pulsewidth_omnipolar(data_table)
+
+        raise Exception("Not implemented yet")
+
         legend = "Pulse Width (ms)"
         title = "Map of Pulse Width of Omnipolar Signals"
     else:
