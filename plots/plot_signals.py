@@ -3,7 +3,10 @@ from dash import dcc
 from plotly.subplots import make_subplots
 
 
-def plot_signals(labels, signals, title):
+def plot_signals(group_rovs, title):
+    labels = group_rovs["label"]
+    signals = group_rovs.drop(["label", "x", "y"], axis=1).astype(float)
+
     signals_fig = make_subplots(
         rows=len(labels),
         cols=1,

@@ -1,3 +1,4 @@
+import os
 import re
 from io import StringIO
 
@@ -6,75 +7,94 @@ import pandas as pd
 from import_data.extract_coords import extract_coords
 from utils.decode_raw_content import decode_raw_content
 
-DXL_RE = re.compile(r"DxL_(\d+).csv")
 FILE_OF_FILES_RE = re.compile(r"(\d+)\sof\s(\d+)")
+
+REQUIRED_DATA_BLOCKS = ["rov trace"]
+REQUIRED_DATA_TABLE_COLUMNS = ["rov LAT", "peak2peak"]
 
 
 def extract_local_dxl_data(paths):
-    # Find all DxL files
-    dxl_files = {}
+    csv_paths = sorted([path for path in paths if path.endswith(".csv")])
 
-    for path in paths:
-        filename = path.split("/")[-1]
-        if DXL_RE.match(filename):
-            dxl_files[int(DXL_RE.match(filename).group(1))] = path
+    if len(csv_paths) == 0:
+        raise Exception("No DxL files uploaded")
+
+    print(f"Found {len(csv_paths)} potential DxL files")
 
     def reader(path):
         with open(path, "r", encoding="utf-8") as f:
             return f.read()
 
-    return extract(dxl_files, reader)
+    names_paths = {os.path.basename(path): path for path in csv_paths}
+
+    return extract(names_paths, reader)
 
 
 def extract_dxl_data(filenames, contents):
-    # Find all DxL files
-    dxl_files = {}
-    for file, content in zip(filenames, contents):
-        match = DXL_RE.match(file)
-        if match:
-            dxl_files[int(match.group(1))] = content
+    csv_files = sorted([path for path in filenames if path.endswith(".csv")])
+
+    if len(csv_files) == 0:
+        raise Exception("No DxL files uploaded")
+
+    print(f"Found {len(csv_files)} potential DxL files")
 
     def reader(content):
         return decode_raw_content(content)
 
-    return extract(dxl_files, reader)
+    names_contents = {name: content for name, content in zip(filenames, contents)}
+
+    return extract(names_contents, reader)
 
 
 def extract(dxls, reader):
-    if len(dxls) == 0:
-        raise Exception("No DxL files uploaded")
-
-    dxls = list(dict(sorted(dxls.items(), key=lambda item: item[0])).values())
-
-    data_table = None
-    meta = None
+    data_table = []
     signals = {}
+    meta = None
 
     seen_files = set()
-    expected_num_files = None
+    expected_num_files = "unknown"
 
-    for file in dxls:
-        file = reader(file)
+    for name, dxl in dxls.items():
+        file = reader(dxl)
 
-        header, data = file.split("Begin data\n", 1)
+        try:
+            header, data = file.split("Begin data\n", 1)
+        except Exception:
+            print(
+                f"ERROR: File {name} is not a DxL file. Missing 'Begin data'. Skipping..."
+            )
+            continue
 
         header = header.split("\n")
         files_match = FILE_OF_FILES_RE.search(header[13])
-        if expected_num_files is None:
-            expected_num_files = int(files_match.group(2))
-            data_table = [None for _ in range(expected_num_files)]
-            # meta = [None for _ in range(expected_num_files)]
+        num_file = "unknown"
+        if files_match is None:
+            print(
+                f"WARNING: File {name} does not have a valid file count declaration. Expected 'x of y' in the header. This may lead to mixed up data. Continuing..."
+            )
         else:
-            if expected_num_files != int(files_match.group(2)):
-                raise Exception("Number of expected files in DxL files do not match")
+            num_file_match = int(files_match.group(1))
 
-        num_file = int(files_match.group(1))
-        if num_file in seen_files:
-            raise Exception(f"File {num_file} is duplicated")
+            if expected_num_files == "unknown":
+                expected_num_files = int(files_match.group(2))
+                print(
+                    f"In file {name} found a header declaration of {expected_num_files} expected files"
+                )
+            else:
+                if expected_num_files != int(files_match.group(2)):
+                    print(
+                        f"WARNING: File {name} has a different number of expected files than the previous files. This may lead to mixed up data. Continuing..."
+                    )
 
-        seen_files.add(num_file)
+            if num_file_match in seen_files:
+                print(
+                    f"WARNING: File {name} has a duplicate file number. This may lead to mixed up data. Continuing..."
+                )
+            else:
+                num_file = num_file_match
+                seen_files.add(num_file)
 
-        print(f"Processing DxL file {num_file} of {expected_num_files}")
+        print(f"Processing {name} - ({num_file} of {expected_num_files})")
 
         # meta_lines = header[0:11]
 
@@ -84,49 +104,94 @@ def extract(dxls, reader):
         #     file_meta[key] = value
 
         # meta[num_file - 1] = file_meta
+        try:
+            data_blocks = data.split("\n\n")
 
-        data_blocks = data.split("\n\n")
-        data_lines, signal_blocks = data_blocks[0][:-6], data_blocks[1:]
+            if len(data_blocks) < 2:
+                print(
+                    f"ERROR: In file {file} data blocks are missing or not splitted by two newlines. Skipping..."
+                )
+                continue
 
-        df_data = pd.read_csv(StringIO(data_lines), sep=",", index_col=0, header=None)
-        df_data = df_data.transpose()
-        df_data.columns = [column[:-1] for column in df_data.columns]
-        data_table[num_file - 1] = df_data
+            data_lines, signal_blocks = data_blocks[0][:-6], data_blocks[1:]
 
-        signal_blocks = signal_blocks[:5]
-        signal_blocks[-1] = signal_blocks[-1].rstrip(
-            "FFT spectrum is available for FFT maps only"
-        )
+            df_data = pd.read_csv(
+                StringIO(data_lines), sep=",", index_col=0, header=None
+            )
+            df_data = df_data.transpose()
+            df_data.columns = [column.strip().rstrip(":") for column in df_data.columns]
+            data_table.append({"num_file": num_file, "data": df_data})
 
-        for block in signal_blocks:
-            df = pd.read_csv(StringIO(block), sep=",", header=None)
-            block_name = df.iloc[0, 0].rstrip(":")
+            signal_blocks = [
+                remove_last_line_if_invalid(signal_block)
+                for signal_block in signal_blocks
+            ]
 
-            if block_name not in signals:
-                signals[block_name] = [None for _ in range(expected_num_files)]
+            num_blocks = len(signal_blocks)
+            for num_block, block in enumerate(signal_blocks):
+                try:
+                    df = pd.read_csv(StringIO(block), sep=",", header=None)
+                    block_name = df.iloc[0, 0].rstrip(":")
+                except Exception:
+                    print(
+                        f"WARNING: Malformed data block {num_block + 1}/{num_blocks} in file {name}. Skipping..."
+                    )
+                    continue
 
-            df = df.drop(df.columns[0], axis=1)
-            df = df.transpose()
-            if block_name == "rov trace":
-                df[["x", "y"]] = df[0].apply(extract_coords).apply(pd.Series)
+                if block_name not in signals:
+                    signals[block_name] = []
 
-                cols = df.columns.tolist()
-                cols = cols[-2:] + cols[:-2]
-                df = df[cols]
+                df = df.drop(df.columns[0], axis=1)
+                df = df.transpose()
 
-                df = df.rename(columns={0: "label"})
+                if block_name == "rov trace":
+                    df[["x", "y"]] = df[0].apply(extract_coords).apply(pd.Series)
 
-            signals[block_name][num_file - 1] = df
+                    cols = df.columns.tolist()
+                    cols = cols[-2:] + cols[:-2]
+                    df = df[cols]
 
-    if len(seen_files) != expected_num_files:
+                    df = df.rename(columns={0: "label"})
+
+                signals[block_name].append({"num_file": num_file, "data": df})
+
+        except Exception as e:
+            print(f"ERROR: File {name} is not a correct DxL file. Skipping...")
+            continue
+
+    if expected_num_files != "unknown":
+        if len(seen_files) > expected_num_files:
+            print(
+                f"WARNING: Expected {expected_num_files} but found {len(seen_files)}. Some files may come from a different dataset"
+            )
+        if len(seen_files) < expected_num_files:
+            missing_files = list(set(range(1, expected_num_files + 1)) - seen_files)
+            print(
+                f"WARNING: Expected {expected_num_files} but found {len(seen_files)}. Missing files: {', '.join(missing_files)}"
+            )
+
+    data_table = pd.concat(
+        [x["data"] for x in sorted(data_table, key=lambda x: x["num_file"])]
+    ).reset_index(drop=True)
+
+    if not all([col in data_table.columns for col in REQUIRED_DATA_TABLE_COLUMNS]):
         raise Exception(
-            f"Expected {expected_num_files} DxL files, but found {len(seen_files)}"
+            f"Missing required columns in data table. Required columns: {', '.join(REQUIRED_DATA_TABLE_COLUMNS)}"
         )
 
-    data_table = pd.concat(data_table)
-    data_table = data_table.reset_index(drop=True)
+    if not all([col in signals for col in REQUIRED_DATA_BLOCKS]):
+        raise Exception(
+            f"Missing required data blocks. Required data blocks: {', '.join(REQUIRED_DATA_BLOCKS)}"
+        )
 
-    signals = {k: pd.concat(v).reset_index(drop=True) for k, v in signals.items()}
+    signals = {
+        k: pd.concat(
+            x["data"] for x in sorted(v, key=lambda x: x["num_file"])
+        ).reset_index(drop=True)
+        for k, v in signals.items()
+    }
+
+    print(f'Reading successful. Found data blocks: {", ".join(signals.keys())}')
 
     data_table = format_data_table_types(data_table)
 
@@ -140,3 +205,12 @@ def format_data_table_types(data_table):
     data_table["peak2peak"] = data_table["peak2peak"].astype(float)
 
     return data_table
+
+
+def remove_last_line_if_invalid(string):
+    lines = string.split("\n")
+    last_line = lines[-1]
+    if last_line.startswith(","):
+        return string
+    else:
+        return "\n".join(lines[:-1])

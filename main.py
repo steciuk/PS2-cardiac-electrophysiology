@@ -77,18 +77,6 @@ app.layout = html.Div(
                             id="draw-ppvoltage",
                             n_clicks=0,
                         ),
-                        dbc.DropdownMenuItem(
-                            "Peak Voltage of omnipolar Signal",
-                            id="draw-peak",
-                            n_clicks=0,
-                            disabled=True,
-                        ),
-                        dbc.DropdownMenuItem(
-                            "Pulse Width of omnipolar Signal",
-                            id="draw-pulsewidth_omnipolar",
-                            n_clicks=0,
-                            disabled=True,
-                        ),
                         dbc.DropdownMenuItem("Clear", id="draw-clear", n_clicks=0),
                     ],
                     id="draw-dropdown",
@@ -202,12 +190,9 @@ def select_freeze_group(group):
     group_data = data_table[data_table["pt number"] == group]
     group_rovs = DATA["signals"]["rov trace"].loc[group_data.index]
 
-    labels = group_rovs["label"]
+    signals_graph = plot_signals(group_rovs, f"Freeze Group {group}")
+
     coords = group_rovs[["x", "y"]].dropna().astype(int)
-    signals = group_rovs.drop(["label", "x", "y"], axis=1).astype(float)
-
-    signals_graph = plot_signals(labels, signals, f"Freeze Group {group}")
-
     available_recordings = np.zeros((4, 4))
     available_recordings[coords["x"], coords["y"]] = 1
 
