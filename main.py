@@ -49,7 +49,7 @@ app.layout = html.Div(
                             n_clicks=0,
                         ),
                     ],
-                    label="Local import (FAST)",
+                    label="Local import",
                     nav=True,
                 ),
                 dbc.DropdownMenu(
@@ -61,26 +61,26 @@ app.layout = html.Div(
                         )
                     ],
                     id="export-dropdown",
-                    label="Local export (FAST)",
+                    label="Local export",
                     nav=True,
                     disabled=True,
                 ),
                 dbc.DropdownMenu(
                     [
                         dbc.DropdownMenuItem(
-                            "Local Activation Times",
+                            "Local activation times",
                             id="draw-lats",
                             n_clicks=0,
                         ),
                         dbc.DropdownMenuItem(
-                            "Peak to Peak voltage of uEGMs",
+                            "Peak to peak voltage of uEGMs",
                             id="draw-ppvoltage",
                             n_clicks=0,
                         ),
                         dbc.DropdownMenuItem("Clear", id="draw-clear", n_clicks=0),
                     ],
                     id="draw-dropdown",
-                    label="Draw Maps",
+                    label="Draw maps",
                     nav=True,
                     disabled=True,
                 ),
@@ -104,7 +104,8 @@ app.layout = html.Div(
                                     disabled=True,
                                 ),
                             ],
-                            style={"max-width": "90px"},
+                            id="freeze-group-container",
+                            style={"display": "none"},
                         ),
                         html.Div(id={"type": "available-recordings", "index": "1"}),
                     ],
@@ -270,6 +271,7 @@ def draw_map(*n_clicks):
     Output("freeze-groups", "disabled"),
     Output("export-dropdown", "disabled"),
     Output("freeze-groups", "value"),
+    Output("freeze-group-container", "style"),
     Input("upload-browse-data", "contents"),
     State("upload-browse-data", "filename"),
     Input("upload-local-data", "n_clicks"),
@@ -283,7 +285,15 @@ def upload_data(contents, filenames, n_clicks_dxl, n_clicks_pkl):
     try:
         if trigger == "upload-browse-data":
             if contents is None or len(contents) == 0:
-                return no_update, no_update, no_update, no_update, no_update, no_update
+                return (
+                    no_update,
+                    no_update,
+                    no_update,
+                    no_update,
+                    no_update,
+                    no_update,
+                    no_update,
+                )
 
             DATA = read_DxL_project(filenames, contents)
 
@@ -295,7 +305,15 @@ def upload_data(contents, filenames, n_clicks_dxl, n_clicks_pkl):
 
     except Exception as e:
         print(f"ERROR: {e}")
-        return no_update, no_update, no_update, no_update, no_update, no_update
+        return (
+            no_update,
+            no_update,
+            no_update,
+            no_update,
+            no_update,
+            no_update,
+            no_update,
+        )
 
     print("Import successful")
 
@@ -305,14 +323,23 @@ def upload_data(contents, filenames, n_clicks_dxl, n_clicks_pkl):
 
     vertices, faces = DATA["vertices"], DATA["faces"]
 
-    if vertices is None or faces is None:
-        return None, True, group_select_options, False, False, None
+    fig = None
+    map_disabled = True
 
-    print("Plotting geometry")
+    if vertices is not None and faces is not None:
+        print("Plotting geometry")
+        fig = dcc.Graph(figure=plot_geometry(vertices, faces))
+        map_disabled = False
 
-    fig = plot_geometry(vertices, faces)
-
-    return dcc.Graph(figure=fig), False, group_select_options, False, False, None
+    return (
+        fig,
+        map_disabled,
+        group_select_options,
+        False,
+        False,
+        None,
+        {"display": "block", "max-width": "90px"},
+    )
 
 
 if __name__ == "__main__":
