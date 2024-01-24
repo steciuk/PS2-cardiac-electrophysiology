@@ -5,6 +5,7 @@ from io import StringIO
 import pandas as pd
 
 from utils.decode_raw_content import decode_raw_content
+from utils.import_data.extract_coords import extract_coords
 
 DXL_RE = re.compile(r"DxL_(\d+).csv")
 FILE_OF_FILES_RE = re.compile(r"(\d+)\sof\s(\d+)")
@@ -96,12 +97,23 @@ def extract(dxls, reader):
 
         for block in signal_blocks:
             df = pd.read_csv(StringIO(block), sep=",", header=None)
-            first_column = df.iloc[0, 0].rstrip(":")
-            if first_column not in signals:
-                signals[first_column] = []
+            block_name = df.iloc[0, 0].rstrip(":")
 
-            df = df.drop(df.columns[0], axis=1).transpose()
-            signals[first_column].append(df)
+            if block_name not in signals:
+                signals[block_name] = []
+
+            df = df.drop(df.columns[0], axis=1)
+            df = df.transpose()
+            if block_name == "rov trace":
+                df[["x", "y"]] = df[0].apply(extract_coords).apply(pd.Series)
+
+                cols = df.columns.tolist()
+                cols = cols[-2:] + cols[:-2]
+                df = df[cols]
+
+                df = df.rename(columns={0: "label"})
+
+            signals[block_name].append(df)
 
     data_table = pd.concat(data_table)
     data_table = data_table.reset_index(drop=True)

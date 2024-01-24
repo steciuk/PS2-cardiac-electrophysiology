@@ -18,10 +18,10 @@ from utils.import_data.read_pkl import read_pkl
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
-global DATA
+# TODO: move to dcc.Store, to allow multiuser sessions
 DATA = None
 
-global GEO_PLOT
+# TODO: move to dcc.Store, to allow multiuser sessions
 GEO_PLOT = None
 
 app.layout = html.Div(
@@ -167,38 +167,27 @@ def select_freeze_group(group):
     group_data = data_table[data_table["pt number"] == group]
     group_rovs = DATA["signals"]["rov trace"].loc[group_data.index]
 
-    channels = group_rovs.iloc[:, 0]
-    signals = group_rovs.drop(group_rovs.columns[0], axis=1).astype(float)
+    labels = group_rovs["label"]
+    coords = group_rovs[["x", "y"]].dropna().astype(int)
+    signals = group_rovs.drop(["label", "x", "y"], axis=1).astype(float)
 
     signals_fig = make_subplots(
-        rows=len(channels),
+        rows=len(labels),
         cols=1,
         shared_xaxes=True,
         vertical_spacing=0,
     )
 
-    recordings_ok = True
-    available_recordings = np.zeros((4, 4))
-
-    for i, channel in enumerate(channels):
+    for i, (idx, label) in enumerate(labels.items()):
         signals_fig.add_trace(
             go.Scatter(
                 x=list(range(len(signals.columns))),
-                y=signals.iloc[i, :],
-                name=channel,
+                y=signals.loc[idx],
+                name=label,
             ),
             row=i + 1,
             col=1,
         )
-        coords = list(channel.split("+")[1].strip())
-        if (
-            len(coords) != 2
-            or not coords[0] in list("ABCD")
-            or not coords[1] in list("1234")
-        ):
-            recordings_ok = False
-        else:
-            available_recordings[ord(coords[0]) - ord("A"), int(coords[1]) - 1] = 1
 
         signals_fig.update_xaxes(showticklabels=False, showgrid=False, row=i + 1, col=1)
         signals_fig.update_yaxes(showticklabels=False, showgrid=False, row=i + 1, col=1)
@@ -223,7 +212,10 @@ def select_freeze_group(group):
         id={"type": "signals-graph", "index": "1"},
     )
 
-    if not recordings_ok:
+    available_recordings = np.zeros((4, 4))
+    available_recordings[coords["x"], coords["y"]] = 1
+
+    if np.all(available_recordings == 0):
         print(
             "'rov trace' headers misformed. Cannot show available recordings. Expected format: 'Channel + [A-D][1-4]'"
         )
