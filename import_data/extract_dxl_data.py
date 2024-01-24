@@ -3,8 +3,8 @@ from io import StringIO
 
 import pandas as pd
 
+from import_data.extract_coords import extract_coords
 from utils.decode_raw_content import decode_raw_content
-from utils.import_data.extract_coords import extract_coords
 
 DXL_RE = re.compile(r"DxL_(\d+).csv")
 FILE_OF_FILES_RE = re.compile(r"(\d+)\sof\s(\d+)")

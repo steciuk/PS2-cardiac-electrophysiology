@@ -2,8 +2,8 @@ import re
 import tkinter as tk
 from tkinter import filedialog
 
-from utils.import_data.extract_dxl_data import extract_dxl_data, extract_local_dxl_data
-from utils.import_data.extract_landmark import extract_landmark, extract_local_landmark
+from import_data.extract_dxl_data import extract_dxl_data, extract_local_dxl_data
+from import_data.extract_landmark import extract_landmark, extract_local_landmark
 
 DXL_RE = re.compile(r"DxL_(\d+).csv")
 
