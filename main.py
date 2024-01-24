@@ -105,11 +105,13 @@ app.layout = html.Div(
                 ),
             ]
         ),
-        html.Div(id={"type": "omnipolar-container", "index": "1"}),
         html.Div(id="signals-container"),
         dbc.Row(
             [
-                dbc.Col(id="graph-container", width=True),
+                dbc.Col(
+                    html.Div(id={"type": "omnipolar-container", "index": "1"}),
+                    width=True,
+                ),
                 dbc.Col(
                     [
                         html.Div(
@@ -121,13 +123,21 @@ app.layout = html.Div(
                                     disabled=True,
                                 ),
                             ],
-                            style={"max-width": "90px", "margin-right": "10px"},
-                        )
+                            style={"max-width": "90px"},
+                        ),
+                        html.Div(id={"type": "available-recordings", "index": "1"}),
                     ],
                     width="auto",
+                    style={
+                        "display": "flex",
+                        "flex-direction": "column",
+                        "gap": "10px",
+                        "align-items": "center",
+                    },
                 ),
-            ],
+            ]
         ),
+        html.Div(id="graph-container"),
         html.Div(id="placeholder", style={"display": "none"}),
     ]
 )
@@ -169,6 +179,7 @@ def select_omnipolar(selected_data, group):
     group_rovs = DATA["signals"]["rov trace"].loc[group_data.index]
 
     coords = group_rovs[["x", "y"]].dropna().astype(int)
+
     signals_cords = group_rovs.drop(["label"], axis=1)
     signals = signals_cords.drop(["x", "y"], axis=1).astype(float)
     signals_ranged = signals.loc[
@@ -202,6 +213,8 @@ def select_omnipolar(selected_data, group):
 
     for x in range(3):
         for y in range(3):
+            row = 3 - x
+            col = y + 1
             if (x, y) in L_coords:
                 recording_idx = signals_cords.loc[
                     (signals_cords["x"] == x) & (signals_cords["y"] == y)
@@ -225,8 +238,8 @@ def select_omnipolar(selected_data, group):
                         y=dif_y.values.flatten(),
                         mode="lines",
                     ),
-                    row=3 - y,
-                    col=x + 1,
+                    col=col,
+                    row=row,
                 )
             else:
                 omni_fig.add_trace(
@@ -236,8 +249,8 @@ def select_omnipolar(selected_data, group):
                         mode="lines",
                         name=f"({x}, {y})",
                     ),
-                    row=3 - y,
-                    col=x + 1,
+                    row=row,
+                    col=col,
                 )
 
                 omni_fig.add_annotation(
@@ -246,8 +259,8 @@ def select_omnipolar(selected_data, group):
                     text="No clique",
                     showarrow=False,
                     font=dict(size=16),
-                    row=3 - y,
-                    col=x + 1,
+                    row=row,
+                    col=col,
                 )
 
     omni_fig.update_layout(
@@ -276,12 +289,16 @@ def export_to_pickle(n_clicks):
     Output(
         {"type": "omnipolar-container", "index": "1"}, "children", allow_duplicate=True
     ),
+    Output(
+        {"type": "available-recordings", "index": "1"},
+        "children",
+    ),
     Input("freeze-groups", "value"),
     prevent_initial_call=True,
 )
 def select_freeze_group(group):
     if group is None:
-        return None, None
+        return None, None, None
 
     print(f"Freeze group {group}")
 
@@ -341,7 +358,7 @@ def select_freeze_group(group):
         print(
             "'rov trace' headers misformed. Cannot show available recordings. Expected format: 'Channel + [A-D][1-4]'"
         )
-        return signals_graph, None
+        return signals_graph, None, None
 
     recordings_fig = go.Figure(
         data=go.Heatmap(
@@ -361,7 +378,7 @@ def select_freeze_group(group):
         height=120,
         autosize=False,
         yaxis={"scaleanchor": "x", "fixedrange": True},
-        margin=dict(l=5, r=0, b=0, t=0, pad=0),
+        margin=dict(l=10, r=10, b=10, t=10, pad=0),
         coloraxis=dict(showscale=False),
     )
 
@@ -372,21 +389,7 @@ def select_freeze_group(group):
         },
     )
 
-    return (
-        dbc.Row(
-            [
-                dbc.Col(
-                    html.Div(
-                        recordings_graph, style={"width": 150, "margin-left": "30px"}
-                    ),
-                    width="auto",
-                ),
-                dbc.Col(signals_graph, width=True),
-            ],
-            align="center",
-        ),
-        None,
-    )
+    return signals_graph, None, recordings_graph
 
 
 @callback(
