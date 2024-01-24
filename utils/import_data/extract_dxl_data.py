@@ -48,8 +48,8 @@ def extract(dxls, reader):
     # Sort by number
     dxls = list(dict(sorted(dxls.items(), key=lambda item: item[0])).values())
 
-    data_table = []
-    meta = []
+    data_table = None
+    meta = None
     signals = {}
 
     seen_files = set()
@@ -64,11 +64,16 @@ def extract(dxls, reader):
         files_match = FILE_OF_FILES_RE.search(header[13])
         if expected_num_files is None:
             expected_num_files = int(files_match.group(2))
+            data_table = [None for _ in range(expected_num_files)]
+            meta = [None for _ in range(expected_num_files)]
         else:
-            assert expected_num_files == int(files_match.group(2))
+            if expected_num_files != int(files_match.group(2)):
+                raise Exception("Number of expected files in DxL files do not match")
 
         num_file = int(files_match.group(1))
-        assert num_file not in seen_files
+        if num_file in seen_files:
+            raise Exception(f"File {num_file} is duplicated")
+
         seen_files.add(num_file)
 
         print(f"Processing DxL file {num_file} of {expected_num_files}")
@@ -80,7 +85,7 @@ def extract(dxls, reader):
             key, value = line.strip().split(" : ")
             file_meta[key] = value
 
-        meta.append(file_meta)
+        meta[num_file - 1] = file_meta
 
         data_blocks = data.split("\n\n")
         data_lines, signal_blocks = data_blocks[0][:-6], data_blocks[1:]
@@ -88,7 +93,7 @@ def extract(dxls, reader):
         df_data = pd.read_csv(StringIO(data_lines), sep=",", index_col=0, header=None)
         df_data = df_data.transpose()
         df_data.columns = [column[:-1] for column in df_data.columns]
-        data_table.append(df_data)
+        data_table[num_file - 1] = df_data
 
         signal_blocks = signal_blocks[:5]
         signal_blocks[-1] = signal_blocks[-1].rstrip(
@@ -100,7 +105,7 @@ def extract(dxls, reader):
             block_name = df.iloc[0, 0].rstrip(":")
 
             if block_name not in signals:
-                signals[block_name] = []
+                signals[block_name] = [None for _ in range(expected_num_files)]
 
             df = df.drop(df.columns[0], axis=1)
             df = df.transpose()
@@ -113,7 +118,12 @@ def extract(dxls, reader):
 
                 df = df.rename(columns={0: "label"})
 
-            signals[block_name].append(df)
+            signals[block_name][num_file - 1] = df
+
+    if len(seen_files) != expected_num_files:
+        raise Exception(
+            f"Expected {expected_num_files} DxL files, but found {len(seen_files)}"
+        )
 
     data_table = pd.concat(data_table)
     data_table = data_table.reset_index(drop=True)

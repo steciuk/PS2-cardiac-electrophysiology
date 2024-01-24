@@ -12,7 +12,10 @@ FACES_PATH_FROM_ROOT = "DIFBody/Volumes/Volume/Polygons"
 
 def extract_landmark(filenames, contents):
     if DXL_LANDMARK_GEO_NAME not in filenames:
-        raise Exception("No DxLandmarkGeo.xml file uploaded")
+        print(
+            f"{DXL_LANDMARK_GEO_NAME} not found. Geometry will not be plotted. Mapping will not be available."
+        )
+        return None, None
 
     landmark_content = contents[filenames.index(DXL_LANDMARK_GEO_NAME)]
     landmark_string = decode_raw_content(landmark_content)
@@ -28,7 +31,10 @@ def extract_local_landmark(paths):
             break
 
     if landmark_path is None:
-        raise Exception("No DxLandmarkGeo.xml file selected")
+        print(
+            f"{DXL_LANDMARK_GEO_NAME} not found. Geometry will not be plotted. Mapping will not be available."
+        )
+        return None, None
 
     with open(landmark_path, "r") as f:
         landmark_string = f.read()

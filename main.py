@@ -345,56 +345,65 @@ def upload_data(contents, filenames, n_clicks_dxl, n_clicks_pkl):
     trigger = ctx.triggered_id
     global DATA
 
-    if trigger == "upload-browse-data":
-        if contents is None or len(contents) == 0:
-            return no_update, no_update, no_update, no_update, no_update, no_update
+    try:
+        if trigger == "upload-browse-data":
+            if contents is None or len(contents) == 0:
+                return no_update, no_update, no_update, no_update, no_update, no_update
 
-        DATA = read_DxL_project(filenames, contents)
+            DATA = read_DxL_project(filenames, contents)
 
-    elif trigger == "upload-local-data":
-        if n_clicks_dxl == 0:
-            return no_update, no_update, no_update, no_update, no_update, no_update
+        elif trigger == "upload-local-data":
+            if n_clicks_dxl == 0:
+                return no_update, no_update, no_update, no_update, no_update, no_update
 
-        DATA = read_local_DxL_project()
+            DATA = read_local_DxL_project()
 
-    elif trigger == "upload-local-pkl":
-        if n_clicks_pkl == 0:
-            return no_update, no_update, no_update, no_update, no_update
+        elif trigger == "upload-local-pkl":
+            if n_clicks_pkl == 0:
+                return no_update, no_update, no_update, no_update, no_update, no_update
 
-        DATA = read_pkl()
+            DATA = read_pkl()
+    except Exception as e:
+        print(f"ERROR: {e}")
+        return no_update, no_update, no_update, no_update, no_update, no_update
 
     data_table = DATA["data_table"]
     groups = data_table["pt number"].unique()
     group_select_options = [{"label": group, "value": group} for group in groups]
 
-    print("Plotting geometry")
     vertices, faces = DATA["vertices"], DATA["faces"]
 
-    # fig = ff.create_trisurf(
-    #     x=vertices["x"],
-    #     y=vertices["y"],
-    #     z=vertices["z"],
-    #     simplices=faces.values,
-    #     title="Geometry",
-    #     aspectratio=dict(x=1, y=1, z=1),
-    #     show_colorbar=False,
-    # )
-    # for trace in fig.data:
-    #     trace.update(opacity=0.5)
+    print("Import successful")
 
-    # fig.update_layout(
-    #     scene={
-    #         "xaxis_title": "x (mm)",
-    #         "yaxis_title": "y (mm)",
-    #         "zaxis_title": "z (mm)",
-    #     },
-    #     showlegend=False,
-    # )
+    if vertices is None or faces is None:
+        return None, True, group_select_options, False, False, None
 
-    # global GEO_PLOT
-    # GEO_PLOT = fig
+    print("Plotting geometry")
 
-    return None, False, group_select_options, False, False, None
+    fig = ff.create_trisurf(
+        x=vertices["x"],
+        y=vertices["y"],
+        z=vertices["z"],
+        simplices=faces.values,
+        title="Geometry",
+        aspectratio=dict(x=1, y=1, z=1),
+        show_colorbar=False,
+    )
+    for trace in fig.data:
+        trace.update(opacity=0.5)
+
+    fig.update_layout(
+        scene={
+            "xaxis_title": "x (mm)",
+            "yaxis_title": "y (mm)",
+            "zaxis_title": "z (mm)",
+        },
+        showlegend=False,
+    )
+
+    global GEO_PLOT
+    GEO_PLOT = fig
+
     return dcc.Graph(figure=fig), False, group_select_options, False, False, None
 
 
