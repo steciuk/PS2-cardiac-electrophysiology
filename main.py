@@ -1,3 +1,5 @@
+import math
+
 import dash
 import dash_bootstrap_components as dbc
 import numpy as np
@@ -132,13 +134,130 @@ app.layout = html.Div(
 
 
 @callback(
-    Output({"type": "omnipolar-container", "index": MATCH}, "children"),
+    Output(
+        {"type": "omnipolar-container", "index": MATCH},
+        "children",
+        allow_duplicate=True,
+    ),
     Input({"type": "signals-graph", "index": MATCH}, "selectedData"),
+    State("freeze-groups", "value"),
     prevent_initial_call=True,
 )
-def select_omnipolar(selectedData):
-    print(selectedData)
-    return no_update
+def select_omnipolar(selected_data, group):
+    if selected_data is None:
+        return no_update
+
+    if group is None:
+        return None
+
+    if selected_data["range"] is None:
+        return None
+
+    selected_data_range_keys = [
+        k for k in selected_data["range"].keys() if k.startswith("x")
+    ]
+    if len(selected_data_range_keys) == 0:
+        print("ERROR: No x range selected")
+        return None
+
+    x_range = [
+        math.ceil(x) for x in selected_data["range"][selected_data_range_keys[0]]
+    ]
+
+    data_table = DATA["data_table"]
+    group_data = data_table[data_table["pt number"] == group]
+    group_rovs = DATA["signals"]["rov trace"].loc[group_data.index]
+
+    coords = group_rovs[["x", "y"]].dropna().astype(int)
+    signals_cords = group_rovs.drop(["label"], axis=1)
+    signals = signals_cords.drop(["x", "y"], axis=1).astype(float)
+    signals_ranged = signals.loc[
+        :, (signals.columns >= x_range[0]) & (signals.columns <= x_range[1])
+    ]
+
+    available_recordings = np.zeros((4, 4))
+    available_recordings[coords["x"], coords["y"]] = 1
+
+    L_coords = []
+
+    for i in range(3):
+        for j in range(3):
+            if available_recordings[i, j] == 1:
+                if (
+                    available_recordings[i + 1, j] == 1
+                    and available_recordings[i, j + 1] == 1
+                ):
+                    L_coords.append((i, j))
+
+    if len(L_coords) == 0:
+        print("No cliques found")
+        return None
+
+    omni_fig = make_subplots(
+        rows=3,
+        cols=3,
+        vertical_spacing=0.05,
+        horizontal_spacing=0.05,
+    )
+
+    for x in range(3):
+        for y in range(3):
+            if (x, y) in L_coords:
+                recording_idx = signals_cords.loc[
+                    (signals_cords["x"] == x) & (signals_cords["y"] == y)
+                ].index
+                upper_idx = signals_cords.loc[
+                    (signals_cords["x"] == x + 1) & (signals_cords["y"] == y)
+                ].index
+                right_idx = signals_cords.loc[
+                    (signals_cords["x"] == x) & (signals_cords["y"] == y + 1)
+                ].index
+                recording = signals_ranged.loc[recording_idx].squeeze()
+                upper = signals_ranged.loc[upper_idx].squeeze()
+                right = signals_ranged.loc[right_idx].squeeze()
+
+                dif_y = upper - recording
+                dif_x = right - recording
+
+                omni_fig.add_trace(
+                    go.Scatter(
+                        x=dif_x.values.flatten(),
+                        y=dif_y.values.flatten(),
+                        mode="lines",
+                    ),
+                    row=3 - y,
+                    col=x + 1,
+                )
+            else:
+                omni_fig.add_trace(
+                    go.Scatter(
+                        x=[],
+                        y=[],
+                        mode="lines",
+                        name=f"({x}, {y})",
+                    ),
+                    row=3 - y,
+                    col=x + 1,
+                )
+
+                omni_fig.add_annotation(
+                    x=0.5,
+                    y=0.5,
+                    text="No clique",
+                    showarrow=False,
+                    font=dict(size=16),
+                    row=3 - y,
+                    col=x + 1,
+                )
+
+    omni_fig.update_layout(
+        height=800,
+        width=800,
+        margin=dict(l=5, r=5, b=5, t=5, pad=0),
+        showlegend=False,
+    )
+
+    return dcc.Graph(figure=omni_fig)
 
 
 @callback(
@@ -154,12 +273,15 @@ def export_to_pickle(n_clicks):
 
 @callback(
     Output("signals-container", "children"),
+    Output(
+        {"type": "omnipolar-container", "index": "1"}, "children", allow_duplicate=True
+    ),
     Input("freeze-groups", "value"),
     prevent_initial_call=True,
 )
 def select_freeze_group(group):
     if group is None:
-        return None
+        return None, None
 
     print(f"Freeze group {group}")
 
@@ -219,7 +341,7 @@ def select_freeze_group(group):
         print(
             "'rov trace' headers misformed. Cannot show available recordings. Expected format: 'Channel + [A-D][1-4]'"
         )
-        return signals_graph
+        return signals_graph, None
 
     recordings_fig = go.Figure(
         data=go.Heatmap(
@@ -250,15 +372,20 @@ def select_freeze_group(group):
         },
     )
 
-    return dbc.Row(
-        [
-            dbc.Col(
-                html.Div(recordings_graph, style={"width": 150, "margin-left": "30px"}),
-                width="auto",
-            ),
-            dbc.Col(signals_graph, width=True),
-        ],
-        align="center",
+    return (
+        dbc.Row(
+            [
+                dbc.Col(
+                    html.Div(
+                        recordings_graph, style={"width": 150, "margin-left": "30px"}
+                    ),
+                    width="auto",
+                ),
+                dbc.Col(signals_graph, width=True),
+            ],
+            align="center",
+        ),
+        None,
     )
 
 
