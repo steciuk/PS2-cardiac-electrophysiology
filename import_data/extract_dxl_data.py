@@ -4,8 +4,8 @@ from io import StringIO
 
 import pandas as pd
 
+from import_data.decode_raw_content import decode_raw_content
 from import_data.extract_coords import extract_coords
-from utils.decode_raw_content import decode_raw_content
 
 FILE_OF_FILES_RE = re.compile(r"(\d+)\sof\s(\d+)")
 
@@ -173,13 +173,25 @@ def extract(dxls, reader):
             )
         if len(seen_files) < expected_num_files:
             missing_files = list(set(range(1, expected_num_files + 1)) - seen_files)
+            missing_files = [str(x) for x in missing_files]
             print(
-                f"WARNING: Expected {expected_num_files} but found {len(seen_files)}. Missing files: {', '.join(missing_files)}"
+                f"WARNING: Expected {expected_num_files} but found {len(seen_files)}. Missing file numbers: {', '.join(missing_files)}"
             )
 
-    data_table = pd.concat(
-        [x["data"] for x in sorted(data_table, key=lambda x: x["num_file"])]
-    ).reset_index(drop=True)
+    data_table = [x for x in sorted(data_table, key=lambda x: x["num_file"])]
+    num_unknown = len([x for x in data_table if x["num_file"] == "unknown"])
+
+    if num_unknown < len(data_table):
+        print(
+            f"Files sorted in order: {', '.join([str(x['num_file']) for x in data_table])}"
+        )
+
+    if num_unknown > 0:
+        print(
+            f"WARNING: Data from {num_unknown} unnumbered files appended to the end of the data"
+        )
+
+    data_table = pd.concat([x["data"] for x in data_table]).reset_index(drop=True)
 
     if not all([col in data_table.columns for col in REQUIRED_DATA_TABLE_COLUMNS]):
         raise Exception(

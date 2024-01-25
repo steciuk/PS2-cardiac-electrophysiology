@@ -4,7 +4,7 @@ import xml.etree.ElementTree as ET
 
 import pandas as pd
 
-from utils.decode_raw_content import decode_raw_content
+from import_data.decode_raw_content import decode_raw_content
 
 VERTICES_PATH_FROM_ROOT = "DIFBody/Volumes/Volume/Vertices"
 FACES_PATH_FROM_ROOT = "DIFBody/Volumes/Volume/Polygons"
