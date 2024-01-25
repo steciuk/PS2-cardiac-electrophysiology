@@ -18,6 +18,7 @@ REQUIRED_DATA_TABLE_COLUMNS = [
     "roving y",
     "roving z",
 ]
+DATA_BLOCKS_TO_READ_COORDS_FROM = ["rov trace"]
 
 
 def extract_local_dxl_data(paths):
@@ -151,7 +152,7 @@ def extract(dxls, reader):
                 df = df.drop(df.columns[0], axis=1)
                 df = df.transpose()
 
-                if block_name == "rov trace":
+                if block_name in DATA_BLOCKS_TO_READ_COORDS_FROM:
                     df[["x", "y"]] = df[0].apply(extract_coords).apply(pd.Series)
 
                     cols = df.columns.tolist()

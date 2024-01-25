@@ -80,11 +80,19 @@ Body of each file should contain data in blocks separated by an empty line. Firs
 
 ```csv
 ...
-pt number,1,1,1...
-ref trace,ECG I,ECG I,ECG I,...
+pt number,1,2,3...
+ref trace,ECG I,ECG II,ECG III,...
 roving x,-23.530,-23.435,-23.445,...
 ...
 ```
+
+which will be read as:
+
+| ... | pt number | ref trace | roving x | ... |
+| --- | --------: | :-------- | -------: | --- |
+| ... |         1 | ECG I     |  -23.530 | ... |
+| ... |         2 | ECG II    |  -23.435 | ... |
+| ... |         3 | ECG III   |  -23.445 | ... |
 
 **In order for the app to work, the following variables are obligatory:**
 
@@ -124,6 +132,37 @@ rov trace:,HD-G + A1,HD-G + A2,HD-G + A3,HD-G + B1,..
 Channel names in the `rov trace` may be in any format, but if they are unipolar signals, they should contain the name of the electrode they are measured from in the consisting of the letter (A, B, C, D) followed by the number (1, 2, 3, 4). For example: `HD-G + A1` or `HD-G + B2`. This is necessary for the app to be able to calculate the omnipolar signals.
 
 If this is not the case, or the name contains more than one fitting letter-number combination, the app will still work, but the omnipolar plots and map of available recordings for each electrode will not be available.
+
+For example, the block from an example above will be read as block named `rov trace` of data:
+
+|   x |   y | label     |       1 |       2 | ... |
+| --: | --: | :-------- | ------: | ------: | --- |
+|   0 |   0 | HD-G + A1 | -1.6010 | -1.6010 | ... |
+|   1 |   0 | HD-G + A2 | -1.2350 | -1.2350 | ... |
+|   2 |   0 | HD-G + A3 | -0.9280 | -0.9280 | ... |
+|   0 |   1 | HD-G + B1 | -1.5960 | -1.5960 | ... |
+| ... | ... | ...       |     ... |     ... | ... |
+
+but a block structured like this:
+
+```csv
+rov trace,HD-G A1-A2,HD-G A2-A3,HD-G A3-A4,HD-G B1-B2,...
+,-1.6010,-1.2350,-0.9280,-1.5960,...
+,-1.6010,-1.2350,-0.9280,-1.5960,...
+...
+```
+
+will be read as:
+
+| x   | y   | label      |       1 |       2 | ... |
+| :-- | :-- | :--------- | ------: | ------: | --- |
+| NaN | NaN | HD-G A1-A2 | -1.6010 | -1.6010 | ... |
+| NaN | NaN | HD-G A2-A3 | -1.2350 | -1.2350 | ... |
+| NaN | NaN | HD-G A3-A4 | -0.9280 | -0.9280 | ... |
+| NaN | NaN | HD-G B1-B2 | -1.5960 | -1.5960 | ... |
+| ... | ... | ...        |     ... |     ... | ... |
+
+and will result in restricted functionality of the app, as described above.
 
 ## How to use
 
