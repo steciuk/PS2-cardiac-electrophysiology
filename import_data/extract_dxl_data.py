@@ -21,7 +21,7 @@ REQUIRED_DATA_TABLE_COLUMNS = [
 
 
 def extract_local_dxl_data(paths):
-    csv_paths = sorted([path for path in paths if path.endswith(".csv")])
+    csv_paths = [path for path in paths if path.endswith(".csv")]
 
     if len(csv_paths) == 0:
         raise Exception("No DxL files uploaded")
@@ -38,7 +38,7 @@ def extract_local_dxl_data(paths):
 
 
 def extract_dxl_data(filenames, contents):
-    csv_files = sorted([path for path in filenames if path.endswith(".csv")])
+    csv_files = [path for path in filenames if path.endswith(".csv")]
 
     if len(csv_files) == 0:
         raise Exception("No DxL files uploaded")

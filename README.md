@@ -161,3 +161,7 @@ After loading the data, on the right side of the screen a dropdown menu with det
 If the names of the channels are in the correct format (as described in [Recording data](#recording-data)), the user will be able to plot omnipole plots. This can be done by clicking and dragging on the signals plot, to select the range of the data that should be used. After releasing the mouse button, the omnipole plot will plotted in 3x3 grid corresponding to the 9 "L" shaped electrodes groups that can be formed from the 4x4 grid of electrodes. If there is no data to calculate the omnipole plot, the plot will be empty with a message saying "No clique".
 
 ![Omnipoles](screenshots/omnipoles.png)
+
+## Whole page screenshot
+
+![Page](screenshots/page.jpeg)
