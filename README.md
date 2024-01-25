@@ -4,19 +4,21 @@ Python, Dash and Plotly app for analyzing cardiac electrophysiology data.
 
 ## How to run
 
-Install dependencies:
+1. Install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Run the app:
+2. Run the app:
 
 ```bash
 python main.py
 ```
 
-Open web browser and go to the address shown in the terminal to view the app.
+3. Open web browser and go to the address shown in the terminal to view the app.
+
+To avoid any conflicts, it is highly recommended to use a [virtual environment](https://docs.python.org/3/library/venv.html) for installing the dependencies.
 
 ## Compatible formats
 
@@ -46,7 +48,7 @@ Geometry data should be in `.xml` with the following structure:
 </DIF>
 ```
 
-where each line in `<Vertices>` contains the x, y and z coordinates of a vertex, and each line in `<Polygons>` contains the indices of the vertices that make up a polygon.
+where each line in `<Vertices>` contains the x, y and z coordinates of a vertex, and each line in `<Polygons>` contains the indices of the vertices that make up a polygon (index starting from 1).
 
 ### Recording data
 
@@ -84,7 +86,7 @@ roving x,-23.530,-23.435,-23.445,...
 ...
 ```
 
-In order for the app to work, the following variables are obligatory:
+**In order for the app to work, the following variables are obligatory:**
 
 - `pt number`
 - `rov LAT`
@@ -115,7 +117,9 @@ rov trace:,HD-G + A1,HD-G + A2,HD-G + A3,HD-G + B1,..
 ...
 ```
 
-The only block that is necessary for the app to work is the `rov trace` block.
+**In order for the app to work, the following blocks are obligatory:**
+
+- `rov trace`
 
 Channel names in the `rov trace` may be in any format, but if they are unipolar signals, they should contain the name of the electrode they are measured from in the consisting of the letter (A, B, C, D) followed by the number (1, 2, 3, 4). For example: `HD-G + A1` or `HD-G + B2`. This is necessary for the app to be able to calculate the omnipolar signals.
 
