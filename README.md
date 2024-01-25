@@ -175,7 +175,7 @@ Upon opening the app, the user is greeted greeted with a a blank screen containi
 There are two types of ways to load data into the app:
 
 - _Import_ - managed by Dash. Allows for uploading the data from client's computer to a server that may be running on a different machine. This is a slower method, as Dash only allows for loading all files at once, and they have to be base64 encoded and then decoded again.
-- _Local import_ - managed by tkinter. This method is much faster, but will only works if the server is running localy.
+- _Local import_ - managed by tkinter. This method is much faster, but will only works if the server is running locally. It was noticed that this method sometimes does not work when the app is opened in Chrome, but doesn't seem to cause any issues in Edge.
 
 After choosing the method of loading data, the user is be prompted to choose the files to load. At least one DxL `.csv` file and an optional `.xml` need to be select. If multiple `.xml` files are chosen, only the first one will be used.
 
