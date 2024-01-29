@@ -6,6 +6,7 @@ import pandas as pd
 
 from import_data.decode_raw_content import decode_raw_content
 from import_data.extract_coords import extract_coords
+from import_data.extract_lessions import extract_lessions
 
 FILE_OF_FILES_RE = re.compile(r"(\d+)\sof\s(\d+)")
 
@@ -62,6 +63,8 @@ def extract(dxls, reader):
     seen_files = set()
     expected_num_files = "unknown"
 
+    skipped_files = []
+
     for name, dxl in dxls.items():
         file = reader(dxl)
 
@@ -71,6 +74,7 @@ def extract(dxls, reader):
             print(
                 f"ERROR: File {name} is not a DxL file. Missing 'Begin data'. Skipping..."
             )
+            skipped_files.append((name, dxl))
             continue
 
         header = header.split("\n")
@@ -119,6 +123,7 @@ def extract(dxls, reader):
                 print(
                     f"ERROR: In file {file} data blocks are missing or not splitted by two newlines. Skipping..."
                 )
+                skipped_files.append((name, dxl))
                 continue
 
             data_lines, signal_blocks = data_blocks[0][:-6], data_blocks[1:]
@@ -165,6 +170,7 @@ def extract(dxls, reader):
 
         except Exception as e:
             print(f"ERROR: File {name} is not a correct DxL file. Skipping...")
+            skipped_files.append((name, dxl))
             continue
 
     if expected_num_files != "unknown":
@@ -215,7 +221,16 @@ def extract(dxls, reader):
 
     data_table = format_data_table_types(data_table)
 
-    return meta, data_table, signals
+    lessions = None
+    if len(skipped_files) > 0:
+        print(
+            f"{len(skipped_files)} file couldn't be read as DxL. Trying as lessions..."
+        )
+        lessions = extract_lessions(skipped_files, reader)
+    else:
+        print("No lessions files found")
+
+    return meta, data_table, signals, lessions
 
 
 def format_data_table_types(data_table):

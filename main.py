@@ -77,6 +77,12 @@ app.layout = html.Div(
                             id="draw-ppvoltage",
                             n_clicks=0,
                         ),
+                        dbc.DropdownMenuItem(
+                            "Lessions",
+                            id="draw-lessions",
+                            n_clicks=0,
+                            disabled=True,
+                        ),
                         dbc.DropdownMenuItem("Clear", id="draw-clear", n_clicks=0),
                     ],
                     id="draw-dropdown",
@@ -215,6 +221,7 @@ def select_freeze_group(group):
     Input("draw-lats", "n_clicks"),
     Input("draw-ppvoltage", "n_clicks"),
     Input("draw-clear", "n_clicks"),
+    Input("draw-lessions", "n_clicks"),
     prevent_initial_call=True,
 )
 def draw_map(*n_clicks):
@@ -224,6 +231,7 @@ def draw_map(*n_clicks):
     values, legend, title = None, "", ""
 
     geo_plot = plot_geometry(DATA["vertices"], DATA["faces"])
+    x, y, z = data_table["roving x"], data_table["roving y"], data_table["roving z"]
 
     if trigger == "draw-lats":
         print("Drawing LATs")
@@ -245,6 +253,15 @@ def draw_map(*n_clicks):
 
         legend = "P-P Voltage (mV)"
         title = "Map of Peak to Peak Voltage (mV)"
+    elif trigger == "draw-lessions":
+        print("Drawing Lessions")
+
+        values = None
+        lessions = DATA["lessions"]
+        x, y, z = lessions["x"], lessions["y"], lessions["z"]
+
+        legend = ""
+        title = "Map of Lessions"
     else:
         print("Clearing")
         geo_plot.update_layout(title="Geometry")
@@ -253,9 +270,9 @@ def draw_map(*n_clicks):
     geo_plot.update_layout(title=title)
 
     scatter = plot_scatter(
-        data_table["roving x"],
-        data_table["roving y"],
-        data_table["roving z"],
+        x,
+        y,
+        z,
         values,
         legend,
     )
@@ -272,6 +289,7 @@ def draw_map(*n_clicks):
     Output("export-dropdown", "disabled"),
     Output("freeze-groups", "value"),
     Output("freeze-group-container", "style"),
+    Output("draw-lessions", "disabled"),
     Input("upload-browse-data", "contents"),
     State("upload-browse-data", "filename"),
     Input("upload-local-data", "n_clicks"),
@@ -286,6 +304,7 @@ def upload_data(contents, filenames, n_clicks_dxl, n_clicks_pkl):
         if trigger == "upload-browse-data":
             if contents is None or len(contents) == 0:
                 return (
+                    no_update,
                     no_update,
                     no_update,
                     no_update,
@@ -313,6 +332,7 @@ def upload_data(contents, filenames, n_clicks_dxl, n_clicks_pkl):
             no_update,
             no_update,
             no_update,
+            no_update,
         )
 
     print("Import successful")
@@ -325,11 +345,17 @@ def upload_data(contents, filenames, n_clicks_dxl, n_clicks_pkl):
 
     fig = None
     map_disabled = True
+    lessions_disabled = True
 
     if vertices is not None and faces is not None:
         print("Plotting geometry")
         fig = dcc.Graph(figure=plot_geometry(vertices, faces))
         map_disabled = False
+
+        if DATA["lessions"] is not None:
+            lessions_disabled = False
+        else:
+            print("WARNING: Lessions mapping disabled")
 
     return (
         fig,
@@ -339,6 +365,7 @@ def upload_data(contents, filenames, n_clicks_dxl, n_clicks_pkl):
         False,
         None,
         {"display": "block", "max-width": "90px"},
+        lessions_disabled,
     )
 
 
