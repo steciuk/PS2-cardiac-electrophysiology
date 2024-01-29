@@ -64,6 +64,7 @@ def plot_omnipoles(group_rovs, x_range):
                         x=dif_x.values.flatten(),
                         y=dif_y.values.flatten(),
                         mode="lines",
+                        line={"color": "#000000"},
                     ),
                     col=col,
                     row=row,

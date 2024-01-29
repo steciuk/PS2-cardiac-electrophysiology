@@ -20,6 +20,7 @@ def plot_signals(group_rovs, title):
                 x=list(range(len(signals.columns))),
                 y=signals.loc[idx],
                 name=label,
+                line={"color": "#000000"},
             ),
             row=i + 1,
             col=1,
