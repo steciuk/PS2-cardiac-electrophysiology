@@ -14,6 +14,7 @@ from plots.plot_omnipoles import plot_omnipoles
 from plots.plot_recordings import plot_recordings
 from plots.plot_scatter import plot_scatter
 from plots.plot_signals import plot_signals
+from utils.filters import bandpass_filter, notch_filter
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
@@ -91,6 +92,23 @@ app.layout = html.Div(
                     disabled=True,
                 ),
             ]
+        ),
+        html.Div(
+            [
+                html.H5("Unipole filters", style={"margin-right": "10px"}),
+                dbc.Select(
+                    id="filters",
+                    options=[
+                        {"label": "None", "value": "None"},
+                        {"label": "Band Pass 2-100Hz", "value": "bp-2-100"},
+                        {"label": "Notch 50Hz", "value": "notch-50"},
+                    ],
+                    value="None",
+                    style={"width": "200px"},
+                ),
+            ],
+            style={"display": "none"},
+            id="filters-container",
         ),
         html.Div(id="signals-container"),
         dbc.Row(
@@ -178,26 +196,55 @@ def export_to_pickle(_):
 
 
 @callback(
-    Output("signals-container", "children"),
+    Output("signals-container", "children", allow_duplicate=True),
     Output(
         {"type": "omnipolar-container", "index": "1"}, "children", allow_duplicate=True
     ),
     Output(
-        {"type": "available-recordings", "index": "1"},
-        "children",
+        {"type": "available-recordings", "index": "1"}, "children", allow_duplicate=True
     ),
-    Input("freeze-groups", "value"),
+    Output("filters-container", "style", allow_duplicate=True),
+    Output("filters", "value", allow_duplicate=True),
+    Input("filters", "value"),
+    State("freeze-groups", "value"),
     prevent_initial_call=True,
 )
-def select_freeze_group(group):
+def change_filter(filter, group):
+    return select_freeze_group(group, filter)
+
+
+@callback(
+    Output("signals-container", "children", allow_duplicate=True),
+    Output(
+        {"type": "omnipolar-container", "index": "1"}, "children", allow_duplicate=True
+    ),
+    Output(
+        {"type": "available-recordings", "index": "1"}, "children", allow_duplicate=True
+    ),
+    Output("filters-container", "style", allow_duplicate=True),
+    Output("filters", "value", allow_duplicate=True),
+    Input("freeze-groups", "value"),
+    State("filters", "value"),
+    prevent_initial_call=True,
+)
+def select_freeze_group(group, filter):
     if group is None:
-        return None, None, None
+        return None, None, None, {"display": "none"}, "None"
 
     data_table = DATA["data_table"]
     group_data = data_table[data_table["pt number"] == group]
     group_rovs = DATA["signals"]["rov trace"].loc[group_data.index]
 
-    signals_graph = plot_signals(group_rovs, f"Freeze Group {group}")
+    fs = data_table["Sample rate"].dropna().unique()[0]
+
+    if filter == "bp-2-100":
+        filter_func = lambda x: bandpass_filter(x, 2, 100, fs)
+    elif filter == "notch-50":
+        filter_func = lambda x: notch_filter(x, 50, fs)
+    else:
+        filter_func = lambda x: x
+
+    signals_graph = plot_signals(group_rovs, f"Freeze Group {group}", filter_func)
 
     coords = group_rovs[["x", "y"]].dropna().astype(int)
     available_recordings = np.zeros((4, 4))
@@ -213,7 +260,7 @@ def select_freeze_group(group):
 
     recordings_graph = plot_recordings(available_recordings)
 
-    return signals_graph, None, recordings_graph
+    return signals_graph, None, recordings_graph, {"display": "block"}, filter
 
 
 @callback(

@@ -18,6 +18,7 @@ REQUIRED_DATA_TABLE_COLUMNS = [
     "roving x",
     "roving y",
     "roving z",
+    "Sample rate",
 ]
 DATA_BLOCKS_TO_READ_COORDS_FROM = ["rov trace"]
 
@@ -126,7 +127,7 @@ def extract(dxls, reader):
                 skipped_files.append((name, dxl))
                 continue
 
-            data_lines, signal_blocks = data_blocks[0][:-6], data_blocks[1:]
+            data_lines, signal_blocks = data_blocks[0], data_blocks[1:]
 
             df_data = pd.read_csv(
                 StringIO(data_lines), sep=",", index_col=0, header=None
@@ -237,6 +238,7 @@ def format_data_table_types(data_table):
     data_table["rov LAT"] = data_table["rov LAT"].astype(float)
     data_table["ref LAT"] = data_table["ref LAT"].astype(float)
     data_table["peak2peak"] = data_table["peak2peak"].astype(float)
+    data_table["Sample rate"] = data_table["Sample rate"].astype(float)
 
     return data_table
 

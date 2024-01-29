@@ -3,7 +3,7 @@ from dash import dcc
 from plotly.subplots import make_subplots
 
 
-def plot_signals(group_rovs, title):
+def plot_signals(group_rovs, title, filter):
     labels = group_rovs["label"]
     signals = group_rovs.drop(["label", "x", "y"], axis=1).astype(float)
 
@@ -15,10 +15,11 @@ def plot_signals(group_rovs, title):
     )
 
     for i, (idx, label) in enumerate(labels.items()):
+        values = filter(signals.loc[idx])
         signals_fig.add_trace(
             go.Scatter(
                 x=list(range(len(signals.columns))),
-                y=signals.loc[idx],
+                y=values,
                 name=label,
                 line={"color": "#000000"},
             ),
