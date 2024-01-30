@@ -200,9 +200,6 @@ def export_to_pickle(_):
     Output(
         {"type": "omnipolar-container", "index": "1"}, "children", allow_duplicate=True
     ),
-    Output(
-        {"type": "available-recordings", "index": "1"}, "children", allow_duplicate=True
-    ),
     Output("filters-container", "style", allow_duplicate=True),
     Output("filters", "value", allow_duplicate=True),
     Input("filters", "value"),
@@ -210,7 +207,25 @@ def export_to_pickle(_):
     prevent_initial_call=True,
 )
 def change_filter(filter, group):
-    return select_freeze_group(group, filter)
+    if group is None:
+        return None, None, {"display": "none"}, "None"
+
+    data_table = DATA["data_table"]
+    group_data = data_table[data_table["pt number"] == group]
+    group_rovs = DATA["signals"]["rov trace"].loc[group_data.index]
+
+    fs = data_table["Sample rate"].dropna().unique()[0]
+
+    if filter == "bp-2-100":
+        filter_func = lambda x: bandpass_filter(x, 2, 100, fs)
+    elif filter == "notch-50":
+        filter_func = lambda x: notch_filter(x, 50, fs)
+    else:
+        filter_func = lambda x: x
+
+    signals_graph = plot_signals(group_rovs, f"Freeze Group {group}", filter_func)
+
+    return signals_graph, None, {"display": "block"}, filter
 
 
 @callback(
@@ -256,7 +271,7 @@ def select_freeze_group(group, filter):
             + "Recordings map won't be shown. Omnipole calculations won't be available. "
             + "Expected format '.*[A-D][1-4].*'"
         )
-        return signals_graph, None, None
+        return signals_graph, None, None, {"display": "block"}, filter
 
     recordings_graph = plot_recordings(available_recordings)
 
